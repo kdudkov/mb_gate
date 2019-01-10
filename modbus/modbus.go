@@ -151,7 +151,8 @@ func (pdu *ProtocolDataUnit) ToTCP(transactionId uint16) (adu []byte, err error)
 	return
 }
 
-func FromTCP(adu []byte) (pdu *ProtocolDataUnit, err error) {
+func FromTCP(adu []byte) (transactionId uint16, pdu *ProtocolDataUnit, err error) {
+	transactionId = binary.BigEndian.Uint16(adu)
 	// Read length value in the header
 	length := binary.BigEndian.Uint16(adu[4:])
 	pduLength := len(adu) - tcpHeaderSize

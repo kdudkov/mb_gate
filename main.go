@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"mb_gate/modbus"
 	"net/http"
@@ -13,8 +12,9 @@ import (
 )
 
 type Job struct {
-	Payload string
-	Ch      chan bool
+	TransactionId uint16
+	Pdu           ProtocolDataUnit
+	Ch            chan bool
 }
 
 type App struct {
@@ -46,10 +46,8 @@ func (app *App) StartWorker() {
 		for {
 			select {
 			case job := <-app.Jobs:
-				app.SerialPort.Send()
 				app.logf("got job")
 				time.Sleep(time.Second)
-				job.Payload = "OK"
 				job.Ch <- true
 			case <-app.Done:
 				return
@@ -61,17 +59,6 @@ func (app *App) StartWorker() {
 
 }
 
-func (app *App) handleIndex() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		job := Job{Ch: make(chan bool)}
-		app.Jobs <- &job
-		<-job.Ch
-		close(job.Ch)
-
-		fmt.Println(job.Payload)
-	}
-}
-
 func (app *App) Run() {
 	app.StartWorker()
 
@@ -81,6 +68,8 @@ func (app *App) Run() {
 	if err != nil {
 		panic(err.Error())
 	}
+
+	app.ListenTCP(":1502")
 }
 
 func main() {
