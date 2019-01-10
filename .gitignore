@@ -1,0 +1,6 @@
+.idea
+pkg
+vendor
+*.swp
+*.tmp
+*.log
