@@ -1,7 +1,8 @@
 package main
 
 import (
-	"log"
+	"flag"
+	"github.com/sirupsen/logrus"
 	"mb_gate/modbus"
 	"net/http"
 	"os"
@@ -11,34 +12,32 @@ import (
 	"time"
 )
 
+var log = logrus.New()
+
 type Job struct {
 	TransactionId uint16
-	Pdu           ProtocolDataUnit
+	Pdu           *modbus.ProtocolDataUnit
 	Ch            chan bool
 }
 
 type App struct {
 	Done       chan bool
 	Jobs       chan *Job
-	Logger     *log.Logger
 	SerialPort *modbus.SerialPort
+	httpPort   string
+	tcpPort    string
 }
 
-func NewApp() (app *App) {
+func NewApp(port string, httpPort string, tcpPort string) (app *App) {
 	app = &App{
 		Done:       make(chan bool),
 		Jobs:       make(chan *Job, 10),
-		Logger:     log.New(os.Stdout, "app: ", log.LstdFlags),
-		SerialPort: NewSerial("/dev/ttyS1", 19200),
+		SerialPort: modbus.NewSerial(port, 19200),
+		httpPort:   httpPort,
+		tcpPort:    tcpPort,
 	}
 	http.HandleFunc("/", app.handleIndex())
 	return
-}
-
-func (app *App) logf(format string, v ...interface{}) {
-	if app.Logger != nil {
-		app.Logger.Printf(format, v...)
-	}
 }
 
 func (app *App) StartWorker() {
@@ -46,7 +45,7 @@ func (app *App) StartWorker() {
 		for {
 			select {
 			case job := <-app.Jobs:
-				app.logf("got job")
+				log.WithFields(logrus.Fields{"tr_id": job.TransactionId}).Info("got job")
 				time.Sleep(time.Second)
 				job.Ch <- true
 			case <-app.Done:
@@ -60,27 +59,41 @@ func (app *App) StartWorker() {
 }
 
 func (app *App) Run() {
+
+	flag.Parse()
+
 	app.StartWorker()
 
-	app.logf("running")
-	err := http.ListenAndServe(":8081", nil)
+	log.Infof("start http server on %s", app.httpPort)
 
-	if err != nil {
-		panic(err.Error())
+	go func() {
+		if err := http.ListenAndServe(app.httpPort, nil); err != nil {
+			log.Panic("can't start tcp listener", err)
+		}
+	}()
+
+	log.Infof("start tcp server on %s", app.tcpPort)
+	if err := app.ListenTCP(app.tcpPort); err != nil {
+		log.Panic("can't start tcp listener", err)
 	}
-
-	app.ListenTCP(":1502")
 }
 
 func main() {
-	app := NewApp()
+	var httpPort = flag.String("http", ":8080", "hpst:port for http")
+	var tcpPort = flag.String("tcp", ":1502", "hpst:port for modbus tcp")
+	var port = flag.String("port", "/dev/ttyS0", "serial port")
+	flag.Parse()
+
+	log.SetLevel(logrus.DebugLevel)
+	log.SetFormatter(&logrus.TextFormatter{})
+	app := NewApp(*port, *httpPort, *tcpPort)
 
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
 		<-c
-		app.logf("exiting...")
+		log.Info("exiting...")
 		app.Done <- true
 		os.Exit(1)
 	}()

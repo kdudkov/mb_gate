@@ -2,7 +2,7 @@ package main
 
 import (
 	"io"
-	"log"
+	"mb_gate/modbus"
 	"net"
 	"time"
 )
@@ -12,40 +12,39 @@ const (
 )
 
 type TcpHandler struct {
-	conn         *net.Conn
+	conn         net.Conn
 	closeTimer   *time.Timer
-	lastActivity *time.Time
+	lastActivity time.Time
 }
 
 func (app *App) ListenTCP(addressPort string) (err error) {
 	listen, err := net.Listen("tcp", addressPort)
 	if err != nil {
-		log.Printf("Failed to Listen: %v\n", err)
+		log.Errorf("Failed to Listen: %v", err)
 		return err
 	}
 
 	for {
 		conn, err := listen.Accept()
 		if err != nil {
-			log.Printf("Unable to accept connections: %#v\n", err)
+			log.Errorf("Unable to accept connections: %#v", err)
 			return err
 		}
 
-		go TcpHandler{conn: conn}.handle(app)
+		h := TcpHandler{conn: conn}
+		go h.handle(app)
 	}
-
-	return err
 }
 
 func (h *TcpHandler) handle(app *App) {
 	defer h.conn.Close()
 
 	for {
-		packet := make([]byte, tcpMaxLength)
+		packet := make([]byte, modbus.TcpHeaderSize)
 		bytesRead, err := h.conn.Read(packet)
 		if err != nil {
 			if err != io.EOF {
-				log.Printf("read error %v\n", err)
+				log.Errorf("read error %v", err)
 			}
 			return
 		}
@@ -53,21 +52,23 @@ func (h *TcpHandler) handle(app *App) {
 		h.lastActivity = time.Now()
 		h.startCloseTimer()
 
-		transactionId, pdu, err := FromTCP(packet[:bytesRead])
+		transactionId, pdu, err := modbus.FromTCP(packet[:bytesRead])
 		if err != nil {
-			log.Printf("bad packet error %v\n", err)
+			log.Errorf("bad packet error %v", err)
 			return
 		}
 
-		job := Job{Ch: make(chan bool)}
+		job := &Job{Ch: make(chan bool)}
 		job.TransactionId = transactionId
 		job.Pdu = pdu
 
-		app.Jobs <- job
-
-		<-job.Ch
+		select {
+		case app.Jobs <- job:
+			<-job.Ch
+		default:
+			log.Error("buffer is full")
+		}
 		close(job.Ch)
-
 	}
 }
 

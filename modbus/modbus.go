@@ -44,12 +44,12 @@ const (
 	ExceptionCodeGatewayPathUnavailable             = 10
 	ExceptionCodeGatewayTargetDeviceFailedToRespond = 11
 
-	rtuMinSize       = 4
-	rtuMaxSize       = 256
-	rtuExceptionSize = 5
+	RtuMinSize       = 4
+	RtuMaxSize       = 256
+	RtuExceptionSize = 5
 
-	tcpHeaderSize = 7
-	tcpMaxLength  = 260
+	TcpHeaderSize = 7
+	TcpMaxLength  = 260
 )
 
 // ModbusError implements error interface.
@@ -96,8 +96,8 @@ func (pdu *ProtocolDataUnit) String() string {
 
 func (pdu *ProtocolDataUnit) MakeRtu() (adu []byte, err error) {
 	length := len(pdu.Data) + 4
-	if length > rtuMaxSize {
-		err = fmt.Errorf("modbus: length of data '%v' must not be bigger than '%v'", length, rtuMaxSize)
+	if length > RtuMaxSize {
+		err = fmt.Errorf("modbus: length of data '%v' must not be bigger than '%v'", length, RtuMaxSize)
 		return
 	}
 	adu = make([]byte, length)
@@ -136,7 +136,7 @@ func FromRtu(adu []byte) (pdu *ProtocolDataUnit, err error) {
 }
 
 func (pdu *ProtocolDataUnit) ToTCP(transactionId uint16) (adu []byte, err error) {
-	adu = make([]byte, tcpHeaderSize+1+len(pdu.Data))
+	adu = make([]byte, TcpHeaderSize+1+len(pdu.Data))
 
 	// Transaction identifier
 	binary.BigEndian.PutUint16(adu, transactionId)
@@ -155,7 +155,7 @@ func FromTCP(adu []byte) (transactionId uint16, pdu *ProtocolDataUnit, err error
 	transactionId = binary.BigEndian.Uint16(adu)
 	// Read length value in the header
 	length := binary.BigEndian.Uint16(adu[4:])
-	pduLength := len(adu) - tcpHeaderSize
+	pduLength := len(adu) - TcpHeaderSize
 
 	if pduLength <= 0 || pduLength != int(length-1) {
 		err = fmt.Errorf("modbus: length in response '%v' does not match pdu data length '%v'", length-1, pduLength)
@@ -164,7 +164,7 @@ func FromTCP(adu []byte) (transactionId uint16, pdu *ProtocolDataUnit, err error
 
 	pdu = &ProtocolDataUnit{}
 	// The first byte after header is function code
-	pdu.FunctionCode = adu[tcpHeaderSize]
-	pdu.Data = adu[tcpHeaderSize+1:]
+	pdu.FunctionCode = adu[TcpHeaderSize]
+	pdu.Data = adu[TcpHeaderSize+1:]
 	return
 }
