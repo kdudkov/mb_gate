@@ -52,8 +52,13 @@ const (
 	TcpMaxLength  = 260
 )
 
+type ModbusMessage interface {
+	ToTCP(transactionId uint16) (adu []byte)
+}
+
 // ModbusError implements error interface.
 type ModbusError struct {
+	SlaveId       byte
 	FunctionCode  byte
 	ExceptionCode byte
 }
@@ -135,7 +140,7 @@ func FromRtu(adu []byte) (pdu *ProtocolDataUnit, err error) {
 	return
 }
 
-func (pdu *ProtocolDataUnit) ToTCP(transactionId uint16) (adu []byte, err error) {
+func (pdu *ProtocolDataUnit) ToTCP(transactionId uint16) (adu []byte) {
 	adu = make([]byte, TcpHeaderSize+1+len(pdu.Data))
 
 	// Transaction identifier
@@ -148,6 +153,21 @@ func (pdu *ProtocolDataUnit) ToTCP(transactionId uint16) (adu []byte, err error)
 	adu[6] = pdu.SlaveId
 	adu[7] = pdu.FunctionCode
 	copy(adu[8:], pdu.Data)
+	return
+}
+
+func (pdu *ModbusError) ToTCP(transactionId uint16) (adu []byte) {
+	adu = make([]byte, TcpHeaderSize+2)
+
+	// Transaction identifier
+	binary.BigEndian.PutUint16(adu, transactionId)
+	// Protocol identifier
+	binary.BigEndian.PutUint16(adu[2:], 0)
+	binary.BigEndian.PutUint16(adu[4:], 2)
+	adu[6] = pdu.SlaveId
+	adu[7] = pdu.FunctionCode
+	adu[8] = pdu.ExceptionCode
+
 	return
 }
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/sirupsen/logrus"
 	"io"
 	"mb_gate/modbus"
 	"net"
@@ -8,7 +9,7 @@ import (
 )
 
 const (
-	IdleTimeout time.Duration = 5 * time.Second
+	IdleTimeout = 5 * time.Second
 )
 
 type TcpHandler struct {
@@ -62,13 +63,26 @@ func (h *TcpHandler) handle(app *App) {
 		job.TransactionId = transactionId
 		job.Pdu = pdu
 
+		defer close(job.Ch)
+
 		select {
 		case app.Jobs <- job:
 			<-job.Ch
+			if _, err := h.conn.Write(job.Answer.ToTCP(transactionId)); err != nil {
+				log.WithFields(logrus.Fields{"tr_id": job.TransactionId}).Error("error sending answer")
+			}
 		default:
-			log.Error("buffer is full")
+			log.WithFields(logrus.Fields{"tr_id": job.TransactionId}).Error("buffer is full")
+			ans := modbus.ModbusError{
+				SlaveId:       pdu.SlaveId,
+				FunctionCode:  pdu.FunctionCode,
+				ExceptionCode: modbus.ExceptionCodeServerDeviceBusy,
+			}
+
+			if _, err := h.conn.Write(ans.ToTCP(transactionId)); err != nil {
+				log.WithFields(logrus.Fields{"tr_id": job.TransactionId}).Error("error sending answer")
+			}
 		}
-		close(job.Ch)
 	}
 }
 

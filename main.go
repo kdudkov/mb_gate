@@ -17,6 +17,7 @@ var log = logrus.New()
 type Job struct {
 	TransactionId uint16
 	Pdu           *modbus.ProtocolDataUnit
+	Answer        modbus.ModbusMessage
 	Ch            chan bool
 }
 
@@ -45,8 +46,17 @@ func (app *App) StartWorker() {
 		for {
 			select {
 			case job := <-app.Jobs:
+				if job.Pdu == nil {
+					log.Error("nil job pdu")
+					continue
+				}
 				log.WithFields(logrus.Fields{"tr_id": job.TransactionId}).Info("got job")
 				time.Sleep(time.Second)
+				job.Answer = &modbus.ModbusError{
+					SlaveId:       job.Pdu.SlaveId,
+					FunctionCode:  job.Pdu.FunctionCode,
+					ExceptionCode: modbus.ExceptionCodeServerDeviceBusy,
+				}
 				job.Ch <- true
 			case <-app.Done:
 				return
