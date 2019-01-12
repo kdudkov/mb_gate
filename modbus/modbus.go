@@ -96,7 +96,31 @@ func (pdu *ProtocolDataUnit) String() string {
 		name = "unknown"
 	}
 
-	return fmt.Sprintf("id: %d, fn: %#.2x %s", pdu.SlaveId, pdu.FunctionCode, name)
+	return fmt.Sprintf("slave_id: %d, fn: %#.2x %s", pdu.SlaveId, pdu.FunctionCode, name)
+}
+
+func ReadDiscteteInputs(slaveId byte, addr uint16, count uint16) (pdu *ProtocolDataUnit) {
+	pdu = &ProtocolDataUnit{SlaveId: slaveId, FunctionCode: FuncCodeReadDiscreteInputs}
+	pdu.Data = make([]byte, 4)
+	binary.BigEndian.PutUint16(pdu.Data, addr)
+	binary.BigEndian.PutUint16(pdu.Data[2:], count)
+	return
+}
+
+func ReadHoldingRegisters(slaveId byte, addr uint16, count uint16) (pdu *ProtocolDataUnit) {
+	pdu = &ProtocolDataUnit{SlaveId: slaveId, FunctionCode: FuncCodeReadHoldingRegisters}
+	pdu.Data = make([]byte, 4)
+	binary.BigEndian.PutUint16(pdu.Data, addr)
+	binary.BigEndian.PutUint16(pdu.Data[2:], count)
+	return
+}
+
+func ReadInputRegisters(slaveId byte, addr uint16, count uint16) (pdu *ProtocolDataUnit) {
+	pdu = &ProtocolDataUnit{SlaveId: slaveId, FunctionCode: FuncCodeReadInputRegisters}
+	pdu.Data = make([]byte, 4)
+	binary.BigEndian.PutUint16(pdu.Data, addr)
+	binary.BigEndian.PutUint16(pdu.Data[2:], count)
+	return
 }
 
 func (pdu *ProtocolDataUnit) MakeRtu() (adu []byte, err error) {
@@ -183,6 +207,7 @@ func FromTCP(adu []byte) (transactionId uint16, pdu *ProtocolDataUnit, err error
 	}
 
 	pdu = &ProtocolDataUnit{}
+	pdu.SlaveId = adu[6]
 	// The first byte after header is function code
 	pdu.FunctionCode = adu[TcpHeaderSize]
 	pdu.Data = adu[TcpHeaderSize+1:]

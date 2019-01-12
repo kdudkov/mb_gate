@@ -2,14 +2,14 @@ package main
 
 import (
 	"flag"
-	"github.com/sirupsen/logrus"
 	"mb_gate/modbus"
 	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
 	"syscall"
-	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 var log = logrus.New()
@@ -51,7 +51,7 @@ func (app *App) StartWorker() {
 					continue
 				}
 				log.WithFields(logrus.Fields{"tr_id": job.TransactionId}).Info("got job")
-				time.Sleep(time.Second)
+
 				job.Answer = &modbus.ModbusError{
 					SlaveId:       job.Pdu.SlaveId,
 					FunctionCode:  job.Pdu.FunctionCode,

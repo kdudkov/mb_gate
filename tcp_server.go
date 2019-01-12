@@ -1,11 +1,12 @@
 package main
 
 import (
-	"github.com/sirupsen/logrus"
 	"io"
 	"mb_gate/modbus"
 	"net"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -41,24 +42,25 @@ func (h *TcpHandler) handle(app *App) {
 	defer h.conn.Close()
 
 	for {
-		packet := make([]byte, modbus.TcpHeaderSize)
+		packet := make([]byte, 255)
 		bytesRead, err := h.conn.Read(packet)
 		if err != nil {
 			if err != io.EOF {
 				log.Errorf("read error %v", err)
 			}
+			if h.closeTimer != nil {
+				h.closeTimer.Stop()
+			}
 			return
 		}
-
-		h.lastActivity = time.Now()
-		h.startCloseTimer()
+		h.setActivity()
 
 		transactionId, pdu, err := modbus.FromTCP(packet[:bytesRead])
 		if err != nil {
 			log.Errorf("bad packet error %v", err)
 			return
 		}
-
+		log.Debug(pdu)
 		job := &Job{Ch: make(chan bool)}
 		job.TransactionId = transactionId
 		job.Pdu = pdu
@@ -71,6 +73,7 @@ func (h *TcpHandler) handle(app *App) {
 			if _, err := h.conn.Write(job.Answer.ToTCP(transactionId)); err != nil {
 				log.WithFields(logrus.Fields{"tr_id": job.TransactionId}).Error("error sending answer")
 			}
+			h.setActivity()
 		default:
 			log.WithFields(logrus.Fields{"tr_id": job.TransactionId}).Error("buffer is full")
 			ans := modbus.ModbusError{
@@ -82,11 +85,14 @@ func (h *TcpHandler) handle(app *App) {
 			if _, err := h.conn.Write(ans.ToTCP(transactionId)); err != nil {
 				log.WithFields(logrus.Fields{"tr_id": job.TransactionId}).Error("error sending answer")
 			}
+			h.setActivity()
 		}
 	}
 }
 
-func (h *TcpHandler) startCloseTimer() {
+func (h *TcpHandler) setActivity() {
+	h.lastActivity = time.Now()
+
 	if h.closeTimer == nil {
 		h.closeTimer = time.AfterFunc(IdleTimeout, h.closeIdle)
 	} else {
