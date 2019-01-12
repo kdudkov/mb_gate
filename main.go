@@ -52,11 +52,7 @@ func (app *App) StartWorker() {
 				}
 				log.WithFields(logrus.Fields{"tr_id": job.TransactionId}).Info("got job")
 
-				job.Answer = &modbus.ModbusError{
-					SlaveId:       job.Pdu.SlaveId,
-					FunctionCode:  job.Pdu.FunctionCode,
-					ExceptionCode: modbus.ExceptionCodeServerDeviceBusy,
-				}
+				job.Answer = modbus.NewModbusError(job.Pdu, modbus.ExceptionCodeServerDeviceBusy)
 				job.Ch <- true
 			case <-app.Done:
 				return

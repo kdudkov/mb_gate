@@ -76,11 +76,7 @@ func (h *TcpHandler) handle(app *App) {
 			h.setActivity()
 		default:
 			log.WithFields(logrus.Fields{"tr_id": job.TransactionId}).Error("buffer is full")
-			ans := modbus.ModbusError{
-				SlaveId:       pdu.SlaveId,
-				FunctionCode:  pdu.FunctionCode,
-				ExceptionCode: modbus.ExceptionCodeServerDeviceBusy,
-			}
+			ans := modbus.NewModbusError(pdu, modbus.ExceptionCodeServerDeviceBusy)
 
 			if _, err := h.conn.Write(ans.ToTCP(transactionId)); err != nil {
 				log.WithFields(logrus.Fields{"tr_id": job.TransactionId}).Error("error sending answer")

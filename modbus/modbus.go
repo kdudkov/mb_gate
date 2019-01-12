@@ -123,6 +123,14 @@ func ReadInputRegisters(slaveId byte, addr uint16, count uint16) (pdu *ProtocolD
 	return
 }
 
+func NewModbusError(pdu *ProtocolDataUnit, errorCode byte) (e *ModbusError) {
+	e = &ModbusError{}
+	e.SlaveId = pdu.SlaveId
+	e.FunctionCode = pdu.FunctionCode
+	e.ExceptionCode = errorCode
+	return
+}
+
 func (pdu *ProtocolDataUnit) MakeRtu() (adu []byte, err error) {
 	length := len(pdu.Data) + 4
 	if length > RtuMaxSize {
