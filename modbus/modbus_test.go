@@ -29,8 +29,10 @@ func TestFromRtu(t *testing.T) {
 	if pdu.FunctionCode != 0xf {
 		t.Fatalf("got function %d, expected %d", pdu.FunctionCode, 0xf)
 	}
+}
 
-	pdu, err = FromRtu([]byte{0x2, 0xf, 0, 0x13, 0, 0xa, 0x2, 0xcd, 0x1, 0x72, 0xcb})
+func TestFromRtuInvalidCRC(t *testing.T) {
+	_, err := FromRtu([]byte{0x2, 0xf, 0, 0x13, 0, 0xa, 0x2, 0xcd, 0x1, 0x72, 0xcb})
 
 	if err == nil {
 		t.Fatalf("invalid crc passed")
