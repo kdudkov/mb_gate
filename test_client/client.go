@@ -23,22 +23,24 @@ func NewSender() (s *Sender) {
 	return
 }
 
-func (s *Sender) Send(pdu *modbus.ProtocolDataUnit) (ans *modbus.ModbusMessage) {
+func (s *Sender) Send(pdu *modbus.ProtocolDataUnit) (ans *modbus.ProtocolDataUnit) {
 	data := pdu.ToTCP(s.trId)
 	s.trId++
 
 	fmt.Println(pdu)
-	fmt.Println(data)
 	s.conn.Write(data)
 	res := make([]byte, 255)
 
 	n, err := s.conn.Read(res)
 	if err != nil {
-		fmt.Printf("error %v\n", err)
+		fmt.Printf("error %s\n", err.Error())
 		return
 	}
 
-	fmt.Println(res[:n])
+	_, ans, _ = modbus.FromTCP(res[:n])
+	if ans != nil {
+		fmt.Println(ans)
+	}
 	return
 }
 

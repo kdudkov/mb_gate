@@ -3,11 +3,10 @@ package modbus
 import (
 	"encoding/binary"
 	"io"
-	"log"
-	"os"
 	"time"
 
 	"github.com/goburrow/serial"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -18,9 +17,7 @@ const (
 type SerialPort struct {
 	serial.Config
 
-	Logger      *log.Logger
-	IdleTimeout time.Duration
-
+	IdleTimeout  time.Duration
 	port         io.ReadWriteCloser
 	lastActivity time.Time
 	closeTimer   *time.Timer
@@ -34,7 +31,6 @@ func NewSerial(device string, baudrate int) (s *SerialPort) {
 	s.Parity = "N"
 	s.StopBits = 1
 	s.Timeout = serialTimeout
-	s.Logger = log.New(os.Stdout, "serial: ", log.LstdFlags)
 	s.IdleTimeout = serialIdleTimeout
 	return
 }
@@ -50,40 +46,34 @@ func (mb *SerialPort) connect() error {
 	return nil
 }
 
-func (mb *SerialPort) close() (err error) {
-	if mb.port != nil {
-		err = mb.port.Close()
-		mb.port = nil
+func (sp *SerialPort) close() (err error) {
+	if sp.port != nil {
+		err = sp.port.Close()
+		sp.port = nil
 	}
 	return
 }
 
-func (mb *SerialPort) logf(format string, v ...interface{}) {
-	if mb.Logger != nil {
-		mb.Logger.Printf(format, v...)
-	}
-}
-
-func (mb *SerialPort) startCloseTimer() {
-	if mb.IdleTimeout <= 0 {
+func (sp *SerialPort) startCloseTimer() {
+	if sp.IdleTimeout <= 0 {
 		return
 	}
-	if mb.closeTimer == nil {
-		mb.closeTimer = time.AfterFunc(mb.IdleTimeout, mb.closeIdle)
+	if sp.closeTimer == nil {
+		sp.closeTimer = time.AfterFunc(sp.IdleTimeout, sp.closeIdle)
 	} else {
-		mb.closeTimer.Reset(mb.IdleTimeout)
+		sp.closeTimer.Reset(sp.IdleTimeout)
 	}
 }
 
 // closeIdle closes the connection if last activity is passed behind IdleTimeout.
-func (mb *SerialPort) closeIdle() {
-	if mb.IdleTimeout <= 0 {
+func (sp *SerialPort) closeIdle() {
+	if sp.IdleTimeout <= 0 {
 		return
 	}
-	idle := time.Now().Sub(mb.lastActivity)
-	if idle >= mb.IdleTimeout {
-		mb.logf("modbus: closing connection due to idle timeout: %v", idle)
-		mb.close()
+	idle := time.Now().Sub(sp.lastActivity)
+	if idle >= sp.IdleTimeout {
+		log.Errorf("modbus: closing connection due to idle timeout: %v", idle)
+		sp.close()
 	}
 }
 
@@ -97,7 +87,7 @@ func (mb *SerialPort) Send(aduRequest []byte) (aduResponse []byte, err error) {
 	mb.startCloseTimer()
 
 	// Send the request
-	mb.logf("modbus: sending % x\n", aduRequest)
+	log.Debugf("modbus: sending %x", aduRequest)
 	if _, err = mb.port.Write(aduRequest); err != nil {
 		return
 	}
@@ -138,7 +128,7 @@ func (mb *SerialPort) Send(aduRequest []byte) (aduResponse []byte, err error) {
 		return
 	}
 	aduResponse = data[:n]
-	mb.logf("modbus: received % x\n", aduResponse)
+	log.Debugf("modbus: received %x", aduResponse)
 	return
 }
 

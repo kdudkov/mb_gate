@@ -17,7 +17,7 @@ var log = logrus.New()
 type Job struct {
 	TransactionId uint16
 	Pdu           *modbus.ProtocolDataUnit
-	Answer        modbus.ModbusMessage
+	Answer        *modbus.ProtocolDataUnit
 	Ch            chan bool
 }
 
@@ -29,11 +29,11 @@ type App struct {
 	tcpPort    string
 }
 
-func NewApp(port string, httpPort string, tcpPort string) (app *App) {
+func NewApp(port string, portSpeed int, httpPort string, tcpPort string) (app *App) {
 	app = &App{
 		Done:       make(chan bool),
 		Jobs:       make(chan *Job, 10),
-		SerialPort: modbus.NewSerial(port, 19200),
+		SerialPort: modbus.NewSerial(port, portSpeed),
 		httpPort:   httpPort,
 		tcpPort:    tcpPort,
 	}
@@ -43,6 +43,7 @@ func NewApp(port string, httpPort string, tcpPort string) (app *App) {
 
 func (app *App) StartWorker() {
 	go func() {
+		var seq uint16
 		for {
 			select {
 			case job := <-app.Jobs:
@@ -50,9 +51,15 @@ func (app *App) StartWorker() {
 					log.Error("nil job pdu")
 					continue
 				}
-				log.WithFields(logrus.Fields{"tr_id": job.TransactionId}).Info("got job")
-
-				job.Answer = modbus.NewModbusError(job.Pdu, modbus.ExceptionCodeServerDeviceBusy)
+				ans, err := app.SerialPort.Send(job.Pdu.ToTCP(seq))
+				seq++
+				if err != nil {
+					log.WithFields(logrus.Fields{"tr_id": job.TransactionId}).Errorf("error %v", err)
+					job.Answer = modbus.NewModbusError(job.Pdu, modbus.ExceptionCodeServerDeviceFailure)
+				} else {
+					job.Answer, _ = modbus.FromRtu(ans)
+					log.WithFields(logrus.Fields{"tr_id": job.TransactionId}).Debugf("answer %v", job.Answer)
+				}
 				job.Ch <- true
 			case <-app.Done:
 				return
@@ -65,9 +72,6 @@ func (app *App) StartWorker() {
 }
 
 func (app *App) Run() {
-
-	flag.Parse()
-
 	app.StartWorker()
 
 	log.Infof("start http server on %s", app.httpPort)
@@ -88,11 +92,12 @@ func main() {
 	var httpPort = flag.String("http", ":8080", "hpst:port for http")
 	var tcpPort = flag.String("tcp", ":1502", "hpst:port for modbus tcp")
 	var port = flag.String("port", "/dev/ttyS0", "serial port")
+	var portSpeed = flag.Int("speed", 19200, "serial port speed")
 	flag.Parse()
 
 	log.SetLevel(logrus.DebugLevel)
 	log.SetFormatter(&logrus.TextFormatter{})
-	app := NewApp(*port, *httpPort, *tcpPort)
+	app := NewApp(*port, *portSpeed, *httpPort, *tcpPort)
 
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)

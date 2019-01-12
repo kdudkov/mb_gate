@@ -52,17 +52,6 @@ const (
 	TcpMaxLength  = 260
 )
 
-type ModbusMessage interface {
-	ToTCP(transactionId uint16) (adu []byte)
-}
-
-// ModbusError implements error interface.
-type ModbusError struct {
-	SlaveId       byte
-	FunctionCode  byte
-	ExceptionCode byte
-}
-
 type ProtocolDataUnit struct {
 	SlaveId      byte
 	FunctionCode byte
@@ -96,7 +85,11 @@ func (pdu *ProtocolDataUnit) String() string {
 		name = "unknown"
 	}
 
-	return fmt.Sprintf("slave_id: %d, fn: %#.2x %s", pdu.SlaveId, pdu.FunctionCode, name)
+	if pdu.FunctionCode&0x80 == 0 {
+		return fmt.Sprintf("slave_id: %d, fn: %#.2x %s", pdu.SlaveId, pdu.FunctionCode, name)
+	} else {
+		return fmt.Sprintf("error: slave_id: %d, fn: %#.2x, code: %#.2x", pdu.SlaveId, pdu.FunctionCode, pdu.Data[0])
+	}
 }
 
 func ReadDiscteteInputs(slaveId byte, addr uint16, count uint16) (pdu *ProtocolDataUnit) {
@@ -123,11 +116,11 @@ func ReadInputRegisters(slaveId byte, addr uint16, count uint16) (pdu *ProtocolD
 	return
 }
 
-func NewModbusError(pdu *ProtocolDataUnit, errorCode byte) (e *ModbusError) {
-	e = &ModbusError{}
+func NewModbusError(pdu *ProtocolDataUnit, errorCode byte) (e *ProtocolDataUnit) {
+	e = &ProtocolDataUnit{}
 	e.SlaveId = pdu.SlaveId
-	e.FunctionCode = pdu.FunctionCode
-	e.ExceptionCode = errorCode
+	e.FunctionCode = pdu.FunctionCode | 0x80
+	e.Data = []byte{errorCode}
 	return
 }
 
@@ -185,21 +178,6 @@ func (pdu *ProtocolDataUnit) ToTCP(transactionId uint16) (adu []byte) {
 	adu[6] = pdu.SlaveId
 	adu[7] = pdu.FunctionCode
 	copy(adu[8:], pdu.Data)
-	return
-}
-
-func (pdu *ModbusError) ToTCP(transactionId uint16) (adu []byte) {
-	adu = make([]byte, TcpHeaderSize+2)
-
-	// Transaction identifier
-	binary.BigEndian.PutUint16(adu, transactionId)
-	// Protocol identifier
-	binary.BigEndian.PutUint16(adu[2:], 0)
-	binary.BigEndian.PutUint16(adu[4:], 2)
-	adu[6] = pdu.SlaveId
-	adu[7] = pdu.FunctionCode
-	adu[8] = pdu.ExceptionCode
-
 	return
 }
 
