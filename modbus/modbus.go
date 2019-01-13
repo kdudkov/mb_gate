@@ -116,6 +116,22 @@ func ReadInputRegisters(slaveId byte, addr uint16, count uint16) (pdu *ProtocolD
 	return
 }
 
+func WriteSingleCoil(slaveId byte, addr uint16, val uint16) (pdu *ProtocolDataUnit) {
+	pdu = &ProtocolDataUnit{SlaveId: slaveId, FunctionCode: FuncCodeWriteSingleCoil}
+	pdu.Data = make([]byte, 4)
+	binary.BigEndian.PutUint16(pdu.Data, addr)
+	binary.BigEndian.PutUint16(pdu.Data[2:], val)
+	return
+}
+
+func WriteSingleRegister(slaveId byte, addr uint16, val uint16) (pdu *ProtocolDataUnit) {
+	pdu = &ProtocolDataUnit{SlaveId: slaveId, FunctionCode: FuncCodeWriteSingleRegister}
+	pdu.Data = make([]byte, 4)
+	binary.BigEndian.PutUint16(pdu.Data, addr)
+	binary.BigEndian.PutUint16(pdu.Data[2:], val)
+	return
+}
+
 func NewModbusError(pdu *ProtocolDataUnit, errorCode byte) (e *ProtocolDataUnit) {
 	e = &ProtocolDataUnit{}
 	e.SlaveId = pdu.SlaveId

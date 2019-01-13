@@ -35,13 +35,13 @@ func NewSerial(device string, baudrate int) (s *SerialPort) {
 	return
 }
 
-func (mb *SerialPort) connect() error {
-	if mb.port == nil {
-		port, err := serial.Open(&mb.Config)
+func (sp *SerialPort) connect() error {
+	if sp.port == nil {
+		port, err := serial.Open(&sp.Config)
 		if err != nil {
 			return err
 		}
-		mb.port = port
+		sp.port = port
 	}
 	return nil
 }
@@ -72,37 +72,39 @@ func (sp *SerialPort) closeIdle() {
 	}
 	idle := time.Now().Sub(sp.lastActivity)
 	if idle >= sp.IdleTimeout {
-		log.Errorf("modbus: closing connection due to idle timeout: %v", idle)
+		log.Errorf("serial: closing connection due to idle timeout: %v", idle)
 		sp.close()
 	}
 }
 
-func (mb *SerialPort) Send(aduRequest []byte) (aduResponse []byte, err error) {
+func (sp *SerialPort) Send(aduRequest []byte) (aduResponse []byte, err error) {
 	// Make sure port is connected
-	if err = mb.connect(); err != nil {
+	if err = sp.connect(); err != nil {
+		log.Errorf("serial: can't connect: %s", err.Error())
 		return
 	}
 	// Start the timer to close when idle
-	mb.lastActivity = time.Now()
-	mb.startCloseTimer()
+	sp.lastActivity = time.Now()
+	sp.startCloseTimer()
 
 	// Send the request
-	log.Debugf("modbus: sending %x", aduRequest)
-	if _, err = mb.port.Write(aduRequest); err != nil {
+	log.Debugf("serial: sending %x", aduRequest)
+	if _, err = sp.port.Write(aduRequest); err != nil {
+		log.Errorf("serial: write error %s", err.Error())
 		return
 	}
 	function := aduRequest[1]
-	functionFail := aduRequest[1] & 0x80
 	bytesToRead := calculateResponseLength(aduRequest)
-	time.Sleep(mb.calculateDelay(len(aduRequest) + bytesToRead))
+	time.Sleep(sp.calculateDelay(len(aduRequest) + bytesToRead))
 
 	var n int
 	var n1 int
 	var data [RtuMaxSize]byte
 	//We first read the minimum length and then read either the full package
 	//or the error package, depending on the error status (byte 2 of the response)
-	n, err = io.ReadAtLeast(mb.port, data[:], RtuMinSize)
+	n, err = io.ReadAtLeast(sp.port, data[:], RtuMinSize)
 	if err != nil {
+		log.Errorf("serial: read header error %s", err.Error())
 		return
 	}
 	//if the function is correct
@@ -111,38 +113,39 @@ func (mb *SerialPort) Send(aduRequest []byte) (aduResponse []byte, err error) {
 		if n < bytesToRead {
 			if bytesToRead > RtuMinSize && bytesToRead <= RtuMaxSize {
 				if bytesToRead > n {
-					n1, err = io.ReadFull(mb.port, data[n:bytesToRead])
+					n1, err = io.ReadFull(sp.port, data[n:bytesToRead])
 					n += n1
 				}
 			}
 		}
-	} else if data[1] == functionFail {
+	} else if data[1]&0x80 != 0 {
 		//for error we need to read 5 bytes
 		if n < RtuExceptionSize {
-			n1, err = io.ReadFull(mb.port, data[n:RtuExceptionSize])
+			n1, err = io.ReadFull(sp.port, data[n:RtuExceptionSize])
 		}
 		n += n1
 	}
 
 	if err != nil {
+		log.Errorf("serial: read error %s", err.Error())
 		return
 	}
 	aduResponse = data[:n]
-	log.Debugf("modbus: received %x", aduResponse)
+	log.Debugf("serial: received %x", aduResponse)
 	return
 }
 
 // calculateDelay roughly calculates time needed for the next frame.
 // See MODBUS over Serial Line - Specification and Implementation Guide (page 13).
-func (mb *SerialPort) calculateDelay(chars int) time.Duration {
+func (sp *SerialPort) calculateDelay(chars int) time.Duration {
 	var characterDelay, frameDelay int // us
 
-	if mb.BaudRate <= 0 || mb.BaudRate > 19200 {
+	if sp.BaudRate <= 0 || sp.BaudRate > 19200 {
 		characterDelay = 750
 		frameDelay = 1750
 	} else {
-		characterDelay = 15000000 / mb.BaudRate
-		frameDelay = 35000000 / mb.BaudRate
+		characterDelay = 15000000 / sp.BaudRate
+		frameDelay = 35000000 / sp.BaudRate
 	}
 	return time.Duration(characterDelay*chars+frameDelay) * time.Microsecond
 }

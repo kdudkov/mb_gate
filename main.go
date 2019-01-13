@@ -43,7 +43,6 @@ func NewApp(port string, portSpeed int, httpPort string, tcpPort string) (app *A
 
 func (app *App) StartWorker() {
 	go func() {
-		var seq uint16
 		for {
 			select {
 			case job := <-app.Jobs:
@@ -51,8 +50,8 @@ func (app *App) StartWorker() {
 					log.Error("nil job pdu")
 					continue
 				}
-				ans, err := app.SerialPort.Send(job.Pdu.ToTCP(seq))
-				seq++
+				d, _ := job.Pdu.MakeRtu()
+				ans, err := app.SerialPort.Send(d)
 				if err != nil {
 					log.WithFields(logrus.Fields{"tr_id": job.TransactionId}).Errorf("error %v", err)
 					job.Answer = modbus.NewModbusError(job.Pdu, modbus.ExceptionCodeServerDeviceFailure)
@@ -95,6 +94,7 @@ func main() {
 	var portSpeed = flag.Int("speed", 19200, "serial port speed")
 	flag.Parse()
 
+	logrus.SetLevel(logrus.DebugLevel)
 	log.SetLevel(logrus.DebugLevel)
 	log.SetFormatter(&logrus.TextFormatter{})
 	app := NewApp(*port, *portSpeed, *httpPort, *tcpPort)

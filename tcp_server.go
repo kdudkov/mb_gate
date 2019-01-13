@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	IdleTimeout = 5 * time.Second
+	IdleTimeout = 10 * time.Second
 )
 
 type TcpHandler struct {

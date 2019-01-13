@@ -14,7 +14,8 @@ type Sender struct {
 func NewSender() (s *Sender) {
 	s = &Sender{}
 
-	conn, err := net.Dial("tcp", "127.0.0.1:1502")
+	conn, err := net.Dial("tcp", "192.168.0.1:55667")
+	//conn, err := net.Dial("tcp", "127.0.0.1:1502")
 	if err != nil {
 		panic("can't write")
 	}
@@ -48,10 +49,10 @@ func main() {
 	s := NewSender()
 	defer s.conn.Close()
 
-	pdu := modbus.ReadInputRegisters(1, 1, 1)
+	pdu := modbus.WriteSingleRegister(5, 2, 0x01ff)
 	s.Send(pdu)
 
-	pdu = modbus.ReadInputRegisters(1, 2, 1)
+	pdu = modbus.ReadInputRegisters(5, 2, 1)
 	s.Send(pdu)
 
 }
