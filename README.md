@@ -4,7 +4,7 @@
 
 ### registers
 Address | Description
----
+--|--
 0x4000 | device address (read/write)
 0x04 | firmware month
 0x08 | firmware year
@@ -13,7 +13,7 @@ Address | Description
 
 ### coils
 Address | Description
----
+--|--
 0x01 | relay1 (0x100 = on?)
 0x02 | relay2 (0x100 = on?)
 0x03 | relay3 (0x100 = on?)
@@ -24,12 +24,12 @@ Address | Description
 
 ### registers
 Address | Description
----
+--|--
 0x1 | device address
 
 ### coils
 Address | Description
----
+--|--
 0x10 | relay1
 0x11 | relay2
 0x12 | relay3
