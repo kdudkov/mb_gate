@@ -61,42 +61,22 @@ func (h *TcpHandler) handle(app *App) {
 			log.Errorf("bad packet error %v", err)
 			return
 		}
-		log.Debug(pdu)
+		log.WithFields(logrus.Fields{"tr_id": transactionId}).Debugf("request: %v", pdu)
 
-		tr, ok := app.translators[pdu.SlaveId]
-		if ok {
-			dontSend := tr.Translate(pdu)
-			if dontSend {
-				if _, err := h.conn.Write(pdu.ToTCP(transactionId)); err != nil {
-					log.WithFields(logrus.Fields{"tr_id": transactionId}).Error("error sending answer")
-				}
-				h.setActivity()
-				continue
-			}
+		ans, err := app.processPdu(transactionId, pdu)
+		if err != nil {
+			log.WithFields(logrus.Fields{"tr_id": transactionId}).Errorf("error processing pdu: %s", err.Error())
 		}
 
-		job := &Job{Ch: make(chan bool)}
-		job.TransactionId = transactionId
-		job.Pdu = pdu
-
-		defer close(job.Ch)
-
-		select {
-		case app.Jobs <- job:
-			<-job.Ch
-			if _, err := h.conn.Write(job.Answer.ToTCP(transactionId)); err != nil {
-				log.WithFields(logrus.Fields{"tr_id": job.TransactionId}).Error("error sending answer")
-			}
-			h.setActivity()
-		default:
-			log.WithFields(logrus.Fields{"tr_id": job.TransactionId}).Error("buffer is full")
-			ans := modbus.NewModbusError(pdu, modbus.ExceptionCodeServerDeviceBusy)
-
-			if _, err := h.conn.Write(ans.ToTCP(transactionId)); err != nil {
-				log.WithFields(logrus.Fields{"tr_id": job.TransactionId}).Error("error sending answer")
-			}
-			h.setActivity()
+		if ans == nil {
+			ans = modbus.NewModbusError(pdu, modbus.ExceptionCodeServerDeviceBusy)
 		}
+		log.WithFields(logrus.Fields{"tr_id": transactionId}).Debugf("answer: %v", ans)
+
+		if _, err := h.conn.Write(ans.ToTCP(transactionId)); err != nil {
+			log.WithFields(logrus.Fields{"tr_id": transactionId}).Error("error sending answer")
+		}
+		h.setActivity()
 	}
 }
 

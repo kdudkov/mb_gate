@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"mb_gate/modbus"
 	"net/http"
 	"os"
@@ -89,6 +90,31 @@ func (app *App) Run() {
 	log.Infof("start tcp server on %s", app.tcpPort)
 	if err := app.ListenTCP(app.tcpPort); err != nil {
 		log.Panic("can't start tcp listener", err)
+	}
+}
+
+func (app *App) processPdu(transactionId uint16, pdu *modbus.ProtocolDataUnit) (*modbus.ProtocolDataUnit, error) {
+	tr, ok := app.translators[pdu.SlaveId]
+	if ok {
+		dontSend := tr.Translate(pdu)
+		if dontSend {
+			return pdu, nil
+		}
+	}
+
+	job := &Job{Ch: make(chan bool)}
+	job.TransactionId = transactionId
+	job.Pdu = pdu
+
+	defer close(job.Ch)
+
+	select {
+	case app.Jobs <- job:
+		<-job.Ch
+		return job.Answer, nil
+	default:
+		ans := modbus.NewModbusError(pdu, modbus.ExceptionCodeServerDeviceBusy)
+		return ans, fmt.Errorf("buffer is full")
 	}
 }
 
