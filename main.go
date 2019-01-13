@@ -22,21 +22,26 @@ type Job struct {
 }
 
 type App struct {
-	Done       chan bool
-	Jobs       chan *Job
-	SerialPort *modbus.SerialPort
-	httpPort   string
-	tcpPort    string
+	Done        chan bool
+	Jobs        chan *Job
+	SerialPort  *modbus.SerialPort
+	httpPort    string
+	tcpPort     string
+	translators map[byte]Translator
 }
 
 func NewApp(port string, portSpeed int, httpPort string, tcpPort string) (app *App) {
 	app = &App{
-		Done:       make(chan bool),
-		Jobs:       make(chan *Job, 10),
-		SerialPort: modbus.NewSerial(port, portSpeed),
-		httpPort:   httpPort,
-		tcpPort:    tcpPort,
+		Done:        make(chan bool),
+		Jobs:        make(chan *Job, 10),
+		SerialPort:  modbus.NewSerial(port, portSpeed),
+		httpPort:    httpPort,
+		tcpPort:     tcpPort,
+		translators: make(map[byte]Translator),
 	}
+
+	app.translators[5] = NewSimpleChinese()
+
 	http.HandleFunc("/", app.handleIndex())
 	return
 }

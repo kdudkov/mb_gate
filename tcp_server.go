@@ -56,11 +56,25 @@ func (h *TcpHandler) handle(app *App) {
 		h.setActivity()
 
 		transactionId, pdu, err := modbus.FromTCP(packet[:bytesRead])
+
 		if err != nil {
 			log.Errorf("bad packet error %v", err)
 			return
 		}
 		log.Debug(pdu)
+
+		tr, ok := app.translators[pdu.SlaveId]
+		if ok {
+			dontSend := tr.Translate(pdu)
+			if dontSend {
+				if _, err := h.conn.Write(pdu.ToTCP(transactionId)); err != nil {
+					log.WithFields(logrus.Fields{"tr_id": transactionId}).Error("error sending answer")
+				}
+				h.setActivity()
+				continue
+			}
+		}
+
 		job := &Job{Ch: make(chan bool)}
 		job.TransactionId = transactionId
 		job.Pdu = pdu

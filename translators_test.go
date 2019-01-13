@@ -23,7 +23,7 @@ func TestSimpleOn(t *testing.T) {
 		t.Fail()
 	}
 
-	if val != 0x200 {
+	if val != 0x100 {
 		t.Fail()
 	}
 	fmt.Println(pdu)
@@ -45,7 +45,7 @@ func TestSimpleOff(t *testing.T) {
 		t.Fail()
 	}
 
-	if val != 0x100 {
+	if val != 0x200 {
 		t.Fail()
 	}
 	fmt.Println(pdu)
@@ -57,7 +57,7 @@ func TestWrite(t *testing.T) {
 	pdu := modbus.WriteSingleRegister(5, 1, 25)
 	tr.Translate(pdu)
 
-	pdu = modbus.ReadInputRegisters(5, 1, 2)
+	pdu = modbus.ReadHoldingRegisters(5, 1, 2)
 	dontSend := tr.Translate(pdu)
 
 	if !dontSend {

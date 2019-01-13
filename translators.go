@@ -25,14 +25,14 @@ func (s *SimpleChineese) Translate(pdu *modbus.ProtocolDataUnit) (dontSend bool)
 		val := binary.BigEndian.Uint16(pdu.Data[2:])
 		s.registers[addr] = val
 		if val == 0 {
-			binary.BigEndian.PutUint16(pdu.Data[2:], 0x100)
-		} else {
 			binary.BigEndian.PutUint16(pdu.Data[2:], 0x200)
+		} else {
+			binary.BigEndian.PutUint16(pdu.Data[2:], 0x100)
 		}
 		return
 	}
 
-	if pdu.FunctionCode == modbus.FuncCodeReadInputRegisters {
+	if pdu.FunctionCode == modbus.FuncCodeReadHoldingRegisters {
 		addr := binary.BigEndian.Uint16(pdu.Data)
 		num := binary.BigEndian.Uint16(pdu.Data[2:])
 		pdu2 := &modbus.ProtocolDataUnit{}
