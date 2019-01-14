@@ -25,7 +25,7 @@ func NewSender() (s *Sender) {
 }
 
 func (s *Sender) Send(pdu *modbus.ProtocolDataUnit) (ans *modbus.ProtocolDataUnit) {
-	data := pdu.ToTCP(s.trId)
+	data := pdu.MakeTCP(s.trId)
 	s.trId++
 
 	fmt.Println(pdu)

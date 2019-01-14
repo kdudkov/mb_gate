@@ -73,7 +73,7 @@ func (h *TcpHandler) handle(app *App) {
 		}
 		log.WithFields(logrus.Fields{"tr_id": transactionId}).Debugf("answer: %v", ans)
 
-		if _, err := h.conn.Write(ans.ToTCP(transactionId)); err != nil {
+		if _, err := h.conn.Write(ans.MakeTCP(transactionId)); err != nil {
 			log.WithFields(logrus.Fields{"tr_id": transactionId}).Error("error sending answer")
 		}
 		h.setActivity()
