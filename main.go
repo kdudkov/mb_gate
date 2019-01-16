@@ -10,10 +10,8 @@ import (
 	"runtime"
 	"syscall"
 
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
-
-var log = logrus.New()
 
 type Job struct {
 	TransactionId uint16
@@ -59,11 +57,11 @@ func (app *App) StartWorker() {
 				d, _ := job.Pdu.MakeRtu()
 				ans, err := app.SerialPort.Send(d)
 				if err != nil {
-					log.WithFields(logrus.Fields{"tr_id": job.TransactionId}).Errorf("error %v", err)
+					log.WithFields(log.Fields{"tr_id": job.TransactionId}).Errorf("error %v", err)
 					job.Answer = modbus.NewModbusError(job.Pdu, modbus.ExceptionCodeServerDeviceFailure)
 				} else {
 					job.Answer, _ = modbus.FromRtu(ans)
-					log.WithFields(logrus.Fields{"tr_id": job.TransactionId}).Debugf("answer %v", job.Answer)
+					log.WithFields(log.Fields{"tr_id": job.TransactionId}).Debugf("answer %v", job.Answer)
 				}
 				job.Ch <- true
 			case <-app.Done:
@@ -123,11 +121,17 @@ func main() {
 	var tcpPort = flag.String("tcp", ":1502", "hpst:port for modbus tcp")
 	var port = flag.String("port", "/dev/ttyS0", "serial port")
 	var portSpeed = flag.Int("speed", 19200, "serial port speed")
+	var debug = flag.Bool("debug", false, "debug mode")
+
 	flag.Parse()
 
-	logrus.SetLevel(logrus.DebugLevel)
-	log.SetLevel(logrus.DebugLevel)
-	log.SetFormatter(&logrus.TextFormatter{})
+	if *debug {
+		log.SetLevel(log.DebugLevel)
+	} else {
+		log.SetLevel(log.InfoLevel)
+	}
+
+	log.SetFormatter(&log.TextFormatter{})
 	app := NewApp(*port, *portSpeed, *httpPort, *tcpPort)
 
 	c := make(chan os.Signal)

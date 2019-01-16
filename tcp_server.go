@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -56,25 +56,26 @@ func (h *TcpHandler) handle(app *App) {
 		h.setActivity()
 
 		transactionId, pdu, err := modbus.FromTCP(packet[:bytesRead])
+		l := log.WithFields(log.Fields{"tr_id": transactionId})
 
 		if err != nil {
 			log.Errorf("bad packet error %v", err)
 			return
 		}
-		log.WithFields(logrus.Fields{"tr_id": transactionId}).Debugf("request: %v", pdu)
+		l.Debugf("request: %v", pdu)
 
 		ans, err := app.processPdu(transactionId, pdu)
 		if err != nil {
-			log.WithFields(logrus.Fields{"tr_id": transactionId}).Errorf("error processing pdu: %s", err.Error())
+			l.Errorf("error processing pdu: %s", err.Error())
 		}
 
 		if ans == nil {
 			ans = modbus.NewModbusError(pdu, modbus.ExceptionCodeServerDeviceBusy)
 		}
-		log.WithFields(logrus.Fields{"tr_id": transactionId}).Debugf("answer: %v", ans)
+		l.Debugf("answer: %v", ans)
 
 		if _, err := h.conn.Write(ans.MakeTCP(transactionId)); err != nil {
-			log.WithFields(logrus.Fields{"tr_id": transactionId}).Error("error sending answer")
+			l.Error("error sending answer")
 		}
 		h.setActivity()
 	}
