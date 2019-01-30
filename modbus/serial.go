@@ -2,11 +2,11 @@ package modbus
 
 import (
 	"encoding/binary"
+	"go.uber.org/zap"
 	"io"
 	"time"
 
 	"github.com/goburrow/serial"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -21,6 +21,7 @@ type SerialPort struct {
 	port         io.ReadWriteCloser
 	lastActivity time.Time
 	closeTimer   *time.Timer
+	Logger       *zap.SugaredLogger
 }
 
 func NewSerial(device string, baudrate int) (s *SerialPort) {
@@ -72,7 +73,7 @@ func (sp *SerialPort) closeIdle() {
 	}
 	idle := time.Now().Sub(sp.lastActivity)
 	if idle >= sp.IdleTimeout {
-		log.Errorf("serial: closing connection due to idle timeout: %v", idle)
+		sp.Logger.Errorf("serial: closing connection due to idle timeout: %v", idle)
 		sp.close()
 	}
 }
@@ -80,7 +81,7 @@ func (sp *SerialPort) closeIdle() {
 func (sp *SerialPort) Send(aduRequest []byte) (aduResponse []byte, err error) {
 	// Make sure port is connected
 	if err = sp.connect(); err != nil {
-		log.Errorf("serial: can't connect: %s", err.Error())
+		sp.Logger.Errorf("serial: can't connect: %s", err.Error())
 		return
 	}
 	// Start the timer to close when idle
@@ -88,9 +89,9 @@ func (sp *SerialPort) Send(aduRequest []byte) (aduResponse []byte, err error) {
 	sp.startCloseTimer()
 
 	// Send the request
-	log.Debugf("serial: sending %x", aduRequest)
+	sp.Logger.Debugf("serial: sending %x", aduRequest)
 	if _, err = sp.port.Write(aduRequest); err != nil {
-		log.Errorf("serial: write error %s", err.Error())
+		sp.Logger.Errorf("serial: write error %s", err.Error())
 		return
 	}
 	function := aduRequest[1]
@@ -104,7 +105,7 @@ func (sp *SerialPort) Send(aduRequest []byte) (aduResponse []byte, err error) {
 	//or the error package, depending on the error status (byte 2 of the response)
 	n, err = io.ReadAtLeast(sp.port, data[:], RtuMinSize)
 	if err != nil {
-		log.Errorf("serial: read header error %s", err.Error())
+		sp.Logger.Errorf("serial: read header error %s", err.Error())
 		return
 	}
 	//if the function is correct
@@ -127,11 +128,11 @@ func (sp *SerialPort) Send(aduRequest []byte) (aduResponse []byte, err error) {
 	}
 
 	if err != nil {
-		log.Errorf("serial: read error %s", err.Error())
+		sp.Logger.Errorf("serial: read error %s", err.Error())
 		return
 	}
 	aduResponse = data[:n]
-	log.Debugf("serial: received %x", aduResponse)
+	sp.Logger.Debugf("serial: received %x", aduResponse)
 	return
 }
 

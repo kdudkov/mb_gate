@@ -2,11 +2,10 @@ package main
 
 import (
 	"io"
-	"mb_gate/modbus"
 	"net"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"mb_gate/modbus"
 )
 
 const (
@@ -22,14 +21,14 @@ type TcpHandler struct {
 func (app *App) ListenTCP(addressPort string) (err error) {
 	listen, err := net.Listen("tcp", addressPort)
 	if err != nil {
-		log.Errorf("Failed to Listen: %v", err)
+		app.Logger.Errorf("Failed to Listen: %v", err)
 		return err
 	}
 
 	for {
 		conn, err := listen.Accept()
 		if err != nil {
-			log.Errorf("Unable to accept connections: %#v", err)
+			app.Logger.Errorf("Unable to accept connections: %#v", err)
 			return err
 		}
 
@@ -46,7 +45,7 @@ func (h *TcpHandler) handle(app *App) {
 		bytesRead, err := h.conn.Read(packet)
 		if err != nil {
 			if err != io.EOF {
-				log.Errorf("read error %v", err)
+				app.Logger.Errorf("read error %v", err)
 			}
 			if h.closeTimer != nil {
 				h.closeTimer.Stop()
@@ -56,10 +55,10 @@ func (h *TcpHandler) handle(app *App) {
 		h.setActivity()
 
 		transactionId, pdu, err := modbus.FromTCP(packet[:bytesRead])
-		l := log.WithFields(log.Fields{"tr_id": transactionId})
+		l := app.Logger.With("tr_id", transactionId)
 
 		if err != nil {
-			log.Errorf("bad packet error %v", err)
+			app.Logger.Errorf("bad packet error %v", err)
 			return
 		}
 		l.Debugf("request: %v", pdu)
@@ -96,7 +95,7 @@ func (h *TcpHandler) closeIdle() {
 	idle := time.Now().Sub(h.lastActivity)
 
 	if idle >= IdleTimeout {
-		log.Printf("modbus: closing tcp connection due to idle timeout: %v", idle)
+		//app.Logger.Printf("modbus: closing tcp connection due to idle timeout: %v", idle)
 		h.conn.Close()
 	}
 }

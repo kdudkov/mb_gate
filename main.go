@@ -3,14 +3,16 @@ package main
 import (
 	"flag"
 	"fmt"
-	"mb_gate/modbus"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"gopkg.in/natefinch/lumberjack.v2"
 	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
 	"syscall"
 
-	log "github.com/sirupsen/logrus"
+	"mb_gate/modbus"
 )
 
 type Job struct {
@@ -27,6 +29,7 @@ type App struct {
 	httpPort    string
 	tcpPort     string
 	translators map[byte]Translator
+	Logger      *zap.SugaredLogger
 }
 
 func NewApp(port string, portSpeed int, httpPort string, tcpPort string) (app *App) {
@@ -37,8 +40,10 @@ func NewApp(port string, portSpeed int, httpPort string, tcpPort string) (app *A
 		httpPort:    httpPort,
 		tcpPort:     tcpPort,
 		translators: make(map[byte]Translator),
+		Logger:      zap.NewExample().Sugar(),
 	}
 
+	app.SerialPort.Logger = app.Logger.Named("serial")
 	app.translators[5] = NewSimpleChinese()
 
 	http.HandleFunc("/", app.handleIndex())
@@ -51,17 +56,17 @@ func (app *App) StartWorker() {
 			select {
 			case job := <-app.Jobs:
 				if job.Pdu == nil {
-					log.Error("nil job pdu")
+					app.Logger.Error("nil job pdu")
 					continue
 				}
 				d, _ := job.Pdu.MakeRtu()
 				ans, err := app.SerialPort.Send(d)
 				if err != nil {
-					log.WithFields(log.Fields{"tr_id": job.TransactionId}).Errorf("error %v", err)
+					app.Logger.Errorf("error %v", err, zap.Uint16("tr_id", job.TransactionId))
 					job.Answer = modbus.NewModbusError(job.Pdu, modbus.ExceptionCodeServerDeviceFailure)
 				} else {
 					job.Answer, _ = modbus.FromRtu(ans)
-					log.WithFields(log.Fields{"tr_id": job.TransactionId}).Debugf("answer %v", job.Answer)
+					app.Logger.Debugf("answer %v", job.Answer, zap.Uint16("tr_id", job.TransactionId))
 				}
 				job.Ch <- true
 			case <-app.Done:
@@ -77,17 +82,17 @@ func (app *App) StartWorker() {
 func (app *App) Run() {
 	app.StartWorker()
 
-	log.Infof("start http server on %s", app.httpPort)
+	app.Logger.Infof("start http server on %s", app.httpPort)
 
 	go func() {
 		if err := http.ListenAndServe(app.httpPort, nil); err != nil {
-			log.Panic("can't start tcp listener", err)
+			app.Logger.Panic("can't start tcp listener", err)
 		}
 	}()
 
-	log.Infof("start tcp server on %s", app.tcpPort)
+	app.Logger.Infof("start tcp server on %s", app.tcpPort)
 	if err := app.ListenTCP(app.tcpPort); err != nil {
-		log.Panic("can't start tcp listener", err)
+		app.Logger.Panic("can't start tcp listener", err)
 	}
 }
 
@@ -121,25 +126,30 @@ func main() {
 	var tcpPort = flag.String("tcp", ":1502", "hpst:port for modbus tcp")
 	var port = flag.String("port", "/dev/ttyS0", "serial port")
 	var portSpeed = flag.Int("speed", 19200, "serial port speed")
-	var debug = flag.Bool("debug", false, "debug mode")
 
 	flag.Parse()
 
-	if *debug {
-		log.SetLevel(log.DebugLevel)
-	} else {
-		log.SetLevel(log.InfoLevel)
-	}
-
-	log.SetFormatter(&log.TextFormatter{})
 	app := NewApp(*port, *portSpeed, *httpPort, *tcpPort)
+
+	w := zapcore.AddSync(&lumberjack.Logger{
+		Filename:   "mb_gate.log",
+		MaxSize:    50, // megabytes
+		MaxBackups: 3,
+		MaxAge:     28, // days
+	})
+	core := zapcore.NewCore(
+		zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
+		w,
+		zap.InfoLevel,
+	)
+	app.Logger = zap.New(core).Sugar()
 
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
 		<-c
-		log.Info("exiting...")
+		app.Logger.Info("exiting...")
 		app.Done <- true
 		os.Exit(1)
 	}()
