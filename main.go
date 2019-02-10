@@ -3,14 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-	"gopkg.in/natefinch/lumberjack.v2"
 	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
 	"syscall"
+
+	"go.uber.org/zap"
 
 	"mb_gate/modbus"
 )
@@ -131,18 +130,10 @@ func main() {
 
 	app := NewApp(*port, *portSpeed, *httpPort, *tcpPort)
 
-	w := zapcore.AddSync(&lumberjack.Logger{
-		Filename:   "mb_gate.log",
-		MaxSize:    50, // megabytes
-		MaxBackups: 3,
-		MaxAge:     28, // days
-	})
-	core := zapcore.NewCore(
-		zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
-		w,
-		zap.InfoLevel,
-	)
-	app.Logger = zap.New(core).Sugar()
+	cfg := zap.NewProductionConfig()
+	logger, _ := cfg.Build()
+
+	app.Logger = logger.Sugar()
 
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
