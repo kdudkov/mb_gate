@@ -36,7 +36,7 @@ type App struct {
 	Logger      *zap.SugaredLogger
 }
 
-func NewApp(port string, portSpeed int, httpPort string, tcpPort string) (app *App) {
+func NewApp(port string, portSpeed int, httpPort string, tcpPort string, logger *zap.SugaredLogger) (app *App) {
 	app = &App{
 		Done:        make(chan bool),
 		Jobs:        make(chan *Job, 10),
@@ -44,7 +44,7 @@ func NewApp(port string, portSpeed int, httpPort string, tcpPort string) (app *A
 		httpPort:    httpPort,
 		tcpPort:     tcpPort,
 		translators: make(map[byte]Translator),
-		Logger:      zap.NewExample().Sugar(),
+		Logger:      logger,
 	}
 
 	app.SerialPort.Logger = app.Logger.Named("serial")
@@ -135,12 +135,9 @@ func main() {
 
 	flag.Parse()
 
-	app := NewApp(*port, *portSpeed, *httpPort, *tcpPort)
-
 	cfg := zap.NewProductionConfig()
 	logger, _ := cfg.Build()
-
-	app.Logger = logger.Sugar()
+	app := NewApp(*port, *portSpeed, *httpPort, *tcpPort, logger.Sugar())
 
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
