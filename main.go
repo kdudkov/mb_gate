@@ -14,6 +14,11 @@ import (
 	"mb_gate/modbus"
 )
 
+var (
+	gitRevision string = "unknown"
+	gitBranch   string = "unknown"
+)
+
 type Job struct {
 	TransactionId uint16
 	Pdu           *modbus.ProtocolDataUnit
@@ -121,6 +126,8 @@ func (app *App) processPdu(transactionId uint16, pdu *modbus.ProtocolDataUnit) (
 }
 
 func main() {
+	fmt.Printf("version %s:%s\n", gitBranch, gitRevision)
+
 	var httpPort = flag.String("http", ":8080", "hpst:port for http")
 	var tcpPort = flag.String("tcp", ":1502", "hpst:port for modbus tcp")
 	var port = flag.String("port", "/dev/ttyS0", "serial port")
