@@ -16,6 +16,7 @@ type TcpHandler struct {
 	conn         net.Conn
 	closeTimer   *time.Timer
 	lastActivity time.Time
+	app          *App
 }
 
 func (app *App) ListenTCP(addressPort string) (err error) {
@@ -32,12 +33,12 @@ func (app *App) ListenTCP(addressPort string) (err error) {
 			return err
 		}
 
-		h := TcpHandler{conn: conn}
-		go h.handle(app)
+		h := TcpHandler{conn: conn, app: app}
+		go h.handle()
 	}
 }
 
-func (h *TcpHandler) handle(app *App) {
+func (h *TcpHandler) handle() {
 	defer h.conn.Close()
 
 	for {
@@ -45,7 +46,7 @@ func (h *TcpHandler) handle(app *App) {
 		bytesRead, err := h.conn.Read(packet)
 		if err != nil {
 			if err != io.EOF {
-				app.Logger.Errorf("read error %v", err)
+				h.app.Logger.Errorf("read error %v", err)
 			}
 			if h.closeTimer != nil {
 				h.closeTimer.Stop()
@@ -55,15 +56,15 @@ func (h *TcpHandler) handle(app *App) {
 		h.setActivity()
 
 		transactionId, pdu, err := modbus.FromTCP(packet[:bytesRead])
-		l := app.Logger.With("tr_id", transactionId)
+		l := h.app.Logger.With("tr_id", transactionId)
 
 		if err != nil {
-			app.Logger.Errorf("bad packet error %v", err)
+			h.app.Logger.Errorf("bad packet error %v", err)
 			return
 		}
 		l.Debugf("request: %v", pdu)
 
-		ans, err := app.processPdu(transactionId, pdu)
+		ans, err := h.app.processPdu(transactionId, pdu)
 		if err != nil {
 			l.Errorf("error processing pdu: %s", err.Error())
 		}
@@ -95,7 +96,7 @@ func (h *TcpHandler) closeIdle() {
 	idle := time.Now().Sub(h.lastActivity)
 
 	if idle >= IdleTimeout {
-		//app.Logger.Printf("modbus: closing tcp connection due to idle timeout: %v", idle)
+		h.app.Logger.Debugf("modbus: closing tcp connection due to idle timeout: %v", idle)
 		h.conn.Close()
 	}
 }

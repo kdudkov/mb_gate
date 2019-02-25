@@ -29,12 +29,17 @@ func (s *Sender) Send(pdu *modbus.ProtocolDataUnit) (ans *modbus.ProtocolDataUni
 	s.trId++
 
 	fmt.Println(pdu)
-	s.conn.Write(data)
+
+	if _, err := s.conn.Write(data); err != nil {
+		fmt.Printf("conn write error %s\n", err.Error())
+		return
+	}
+
 	res := make([]byte, 255)
 
 	n, err := s.conn.Read(res)
 	if err != nil {
-		fmt.Printf("error %s\n", err.Error())
+		fmt.Printf("conn read error %s\n", err.Error())
 		return
 	}
 

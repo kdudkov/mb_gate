@@ -50,7 +50,7 @@ func NewApp(port string, portSpeed int, httpPort string, tcpPort string, logger 
 	app.SerialPort.Logger = app.Logger.Named("serial")
 	app.translators[5] = NewSimpleChinese()
 
-	http.HandleFunc("/", app.handleIndex())
+	app.setRoute()
 	return
 }
 
