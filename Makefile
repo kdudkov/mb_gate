@@ -1,26 +1,29 @@
-.PHONY: clean build prepare all test
-
 default: all
 
-all: prepare test build
+all: test build
 
-GIT_REVISION=`git rev-parse --short HEAD`
-GIT_BRANCH=`git rev-parse --symbolic-full-name --abbrev-ref HEAD`
+GIT_REVISION=$(shell git rev-parse --short HEAD)
+GIT_BRANCH=$(shell git rev-parse --symbolic-full-name --abbrev-ref HEAD)
 
-LDFLAGS=-ldflags "-s -X main.gitRevision=${GIT_REVISION} -X main.gitBranch=${GIT_BRANCH}"
+LDFLAGS=-ldflags "-s -X main.gitRevision=$(GIT_REVISION) -X main.gitBranch=$(GIT_BRANCH)"
 
+.PHONY: clean
 clean:
 	rm bin/*
 
+.PHONY: prepare
 prepare:
 	go mod tidy
 
-test:
+.PHONY: test
+test: prepare
 	go test -v ./...
 
+.PHONY: run
 run:
 	go run .
 
-build:
-	go build ${LDFLAGS} -o bin/mb_gate
-	go build ${LDFLAGS} -o bin/client test_client/client.go
+.PHONY: build
+build: prepare
+	go build $(LDFLAGS) -o bin/mb_gate
+	go build $(LDFLAGS) -o bin/client test_client/client.go
