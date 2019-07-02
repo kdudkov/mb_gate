@@ -92,7 +92,7 @@ func (pdu *ProtocolDataUnit) String() string {
 	}
 }
 
-func Read(slaveId byte, fn byte, addr uint16, count uint16) (pdu *ProtocolDataUnit) {
+func readManyPDU(slaveId byte, fn byte, addr uint16, count uint16) (pdu *ProtocolDataUnit) {
 	pdu = &ProtocolDataUnit{SlaveId: slaveId, FunctionCode: fn}
 	pdu.Data = make([]byte, 4)
 	binary.BigEndian.PutUint16(pdu.Data, addr)
@@ -101,26 +101,47 @@ func Read(slaveId byte, fn byte, addr uint16, count uint16) (pdu *ProtocolDataUn
 }
 
 func ReadCoils(slaveId byte, addr uint16, count uint16) *ProtocolDataUnit {
-	return Read(slaveId, FuncCodeReadCoils, addr, count)
+	return readManyPDU(slaveId, FuncCodeReadCoils, addr, count)
 }
 
 func ReadDiscteteInputs(slaveId byte, addr uint16, count uint16) *ProtocolDataUnit {
-	return Read(slaveId, FuncCodeReadDiscreteInputs, addr, count)
+	return readManyPDU(slaveId, FuncCodeReadDiscreteInputs, addr, count)
 }
 
 func ReadHoldingRegisters(slaveId byte, addr uint16, count uint16) (pdu *ProtocolDataUnit) {
-	return Read(slaveId, FuncCodeReadHoldingRegisters, addr, count)
+	return readManyPDU(slaveId, FuncCodeReadHoldingRegisters, addr, count)
 }
 
 func ReadInputRegisters(slaveId byte, addr uint16, count uint16) (pdu *ProtocolDataUnit) {
-	return Read(slaveId, FuncCodeReadInputRegisters, addr, count)
+	return readManyPDU(slaveId, FuncCodeReadInputRegisters, addr, count)
 }
 
-func WriteSingleCoil(slaveId byte, addr uint16, val uint16) (pdu *ProtocolDataUnit) {
+func WriteSingleCoil(slaveId byte, addr uint16, val bool) (pdu *ProtocolDataUnit) {
+	var v uint16 = 0
+	if val {
+		v = 0xff
+	}
+	return WriteSingleCoilRaw(slaveId, addr, v)
+}
+
+func WriteSingleCoilRaw(slaveId byte, addr uint16, val uint16) (pdu *ProtocolDataUnit) {
 	pdu = &ProtocolDataUnit{SlaveId: slaveId, FunctionCode: FuncCodeWriteSingleCoil}
 	pdu.Data = make([]byte, 4)
 	binary.BigEndian.PutUint16(pdu.Data, addr)
 	binary.BigEndian.PutUint16(pdu.Data[2:], val)
+	return
+}
+
+func WriteMultipleCoilsRaw(slaveId byte, addr uint16, num uint16, data []byte) (pdu *ProtocolDataUnit) {
+	pdu = &ProtocolDataUnit{SlaveId: slaveId, FunctionCode: FuncCodeWriteMultipleCoils}
+	pdu.Data = make([]byte, 6+len(data))
+	binary.BigEndian.PutUint16(pdu.Data, addr)
+	binary.BigEndian.PutUint16(pdu.Data[2:], num)
+	pdu.Data[4] = byte(len(data))
+	var i uint16
+	for i = 0; i < uint16(len(data)); i++ {
+		pdu.Data[5+i] = data[i]
+	}
 	return
 }
 
@@ -129,6 +150,20 @@ func WriteSingleRegister(slaveId byte, addr uint16, val uint16) (pdu *ProtocolDa
 	pdu.Data = make([]byte, 4)
 	binary.BigEndian.PutUint16(pdu.Data, addr)
 	binary.BigEndian.PutUint16(pdu.Data[2:], val)
+	return
+}
+
+func WriteMultipleRegisters(slaveId byte, addr uint16, count uint16, values []uint16) (pdu *ProtocolDataUnit) {
+	pdu = &ProtocolDataUnit{SlaveId: slaveId, FunctionCode: FuncCodeWriteMultipleRegisters}
+	pdu.Data = make([]byte, 5+2*count)
+	binary.BigEndian.PutUint16(pdu.Data, addr)
+	binary.BigEndian.PutUint16(pdu.Data[2:], count)
+	pdu.Data[4] = byte(2 * len(values))
+	var i uint16
+	for i = 0; i < count; i++ {
+		binary.BigEndian.PutUint16(pdu.Data[5+2*i:], values[i])
+	}
+
 	return
 }
 
@@ -199,7 +234,7 @@ func (pdu *ProtocolDataUnit) MakeTCP(transactionId uint16) (adu []byte) {
 
 func FromTCP(adu []byte) (transactionId uint16, pdu *ProtocolDataUnit, err error) {
 	transactionId = binary.BigEndian.Uint16(adu)
-	// Read length value in the header
+	// readManyPDU length value in the header
 	length := binary.BigEndian.Uint16(adu[4:])
 	pduLength := len(adu) - TcpHeaderSize
 

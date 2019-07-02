@@ -2,9 +2,10 @@ package modbus
 
 import (
 	"encoding/binary"
-	"go.uber.org/zap"
 	"io"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/goburrow/serial"
 )

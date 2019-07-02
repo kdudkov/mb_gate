@@ -8,10 +8,15 @@ import (
 	"os/signal"
 	"runtime"
 	"syscall"
+	"time"
 
 	"go.uber.org/zap"
 
 	"mb_gate/modbus"
+)
+
+const (
+	readTimeout = time.Second * 5
 )
 
 var (
@@ -48,7 +53,10 @@ func NewApp(port string, portSpeed int, httpPort string, tcpPort string, logger 
 	}
 
 	app.SerialPort.Logger = app.Logger.Named("serial")
+	// addr 5
 	app.translators[5] = NewSimpleChinese()
+	// addr 100
+	app.translators[100] = NewFakeTranslator()
 
 	app.setRoute()
 	return
@@ -109,16 +117,18 @@ func (app *App) processPdu(transactionId uint16, pdu *modbus.ProtocolDataUnit) (
 		}
 	}
 
-	job := &Job{Ch: make(chan bool)}
-	job.TransactionId = transactionId
-	job.Pdu = pdu
-
+	job := &Job{Ch: make(chan bool), TransactionId: transactionId, Pdu: pdu}
 	defer close(job.Ch)
 
 	select {
 	case app.Jobs <- job:
-		<-job.Ch
-		return job.Answer, nil
+		select {
+		case <-job.Ch:
+			return job.Answer, nil
+		case <-time.After(readTimeout):
+			ans := modbus.NewModbusError(pdu, modbus.ExceptionCodeServerDeviceFailure)
+			return ans, fmt.Errorf("timeout")
+		}
 	default:
 		ans := modbus.NewModbusError(pdu, modbus.ExceptionCodeServerDeviceBusy)
 		return ans, fmt.Errorf("buffer is full")
