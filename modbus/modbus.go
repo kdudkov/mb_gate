@@ -59,6 +59,17 @@ type ProtocolDataUnit struct {
 }
 
 func (pdu *ProtocolDataUnit) String() string {
+	s := ""
+	for _, d := range pdu.Data {
+		if s != "" {
+			s = s + " "
+		}
+		s = s + fmt.Sprintf("%#.2x", d)
+	}
+	return fmt.Sprintf("slaveId: %d, fn: %#.2x, data: %s", pdu.SlaveId, pdu.FunctionCode, s)
+}
+
+func (pdu *ProtocolDataUnit) ReqString() string {
 	var name string
 
 	switch pdu.FunctionCode {

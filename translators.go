@@ -93,6 +93,7 @@ func (t *FakeTranslator) Translate(pdu *modbus.ProtocolDataUnit) bool {
 		for i = 0; i < num; i++ {
 			t.registers[addr+i] = binary.BigEndian.Uint16(pdu.Data[5+2*i:])
 		}
+		return true
 
 	case modbus.FuncCodeReadHoldingRegisters:
 		addr := binary.BigEndian.Uint16(pdu.Data)
