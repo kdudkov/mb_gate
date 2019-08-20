@@ -94,12 +94,12 @@ func main() {
 
 	default:
 		fmt.Println("functions:")
-		fmt.Println("  1 (0x01) — Read Coils Status.")
+		fmt.Println("  1 (0x01) — Read Coils.")
 		fmt.Println("  2 (0x02) — Read Discrete Inputs.")
 		fmt.Println("  3 (0x03) — Read Holding Registers.")
 		fmt.Println("  4 (0x04) — Read Input Registers.")
-		fmt.Println("  5 (0x05) — Force Single Coil.")
-		fmt.Println("  6 (0x06) — Preset Single Register.")
+		fmt.Println("  5 (0x05) — Write Single Coil.")
+		fmt.Println("  6 (0x06) — Write Single Register.")
 		os.Exit(1)
 	}
 
