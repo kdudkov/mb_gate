@@ -12,8 +12,9 @@ func main() {
 	var host = flag.String("host", "192.168.1.1:1502", "host:port")
 
 	flag.Parse()
-	s, err := modbus.NewModbusSender(*host)
+	s := modbus.NewModbusSender(*host)
 
+	err := s.Connect()
 	if err != nil {
 		fmt.Printf("error: %s", err.Error())
 		os.Exit(1)

@@ -16,8 +16,8 @@ func main() {
 	//var data = flag.String("data", "", "data to send")
 
 	flag.Parse()
-	s, err := modbus.NewModbusSender(*host)
-
+	s := modbus.NewModbusSender(*host)
+	err := s.Connect()
 	if err != nil {
 		fmt.Printf("error: %s", err.Error())
 		os.Exit(1)

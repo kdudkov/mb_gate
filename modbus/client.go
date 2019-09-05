@@ -5,16 +5,23 @@ import (
 )
 
 type ModbusSender struct {
+	addr string
 	conn net.Conn
 	trId uint16
 }
 
-func NewModbusSender(addr string) (s *ModbusSender, err error) {
-	s = &ModbusSender{}
+func NewModbusSender(addr string) *ModbusSender {
+	return &ModbusSender{addr: addr}
+}
 
-	conn, err := net.Dial("tcp", addr)
+func (s *ModbusSender) Connect() error {
+	if s.conn != nil {
+		return nil
+	}
+
+	conn, err := net.Dial("tcp", s.addr)
 	s.conn = conn
-	return s, err
+	return err
 }
 
 func (s *ModbusSender) Send(pdu *ProtocolDataUnit) (*ProtocolDataUnit, error) {
