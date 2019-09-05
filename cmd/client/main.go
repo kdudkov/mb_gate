@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"github.com/kdudkov/mb_gate/modbus"
 	"os"
-
-	"github.com/kdudkov/mb_gate/client"
 )
 
 func main() {
@@ -18,7 +16,7 @@ func main() {
 	//var data = flag.String("data", "", "data to send")
 
 	flag.Parse()
-	s, err := client.NewModbusSender(*host)
+	s, err := modbus.NewModbusSender(*host)
 
 	if err != nil {
 		fmt.Printf("error: %s", err.Error())

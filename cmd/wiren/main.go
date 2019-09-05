@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
-	"github.com/kdudkov/mb_gate/client"
 	"github.com/kdudkov/mb_gate/modbus"
 	"os"
 )
@@ -13,7 +12,7 @@ func main() {
 	var host = flag.String("host", "192.168.1.1:1502", "host:port")
 
 	flag.Parse()
-	s, err := client.NewModbusSender(*host)
+	s, err := modbus.NewModbusSender(*host)
 
 	if err != nil {
 		fmt.Printf("error: %s", err.Error())
@@ -48,7 +47,7 @@ func main() {
 	CheckDev(s, 42)
 }
 
-func CheckDev(s *client.ModbusSender, addr uint16) {
+func CheckDev(s *modbus.ModbusSender, addr uint16) {
 	pdu := modbus.ReadHoldingRegisters(byte(addr), 200, 6)
 	resp, _ := s.Send(pdu)
 

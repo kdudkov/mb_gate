@@ -1,9 +1,7 @@
-package client
+package modbus
 
 import (
 	"net"
-
-	"github.com/kdudkov/mb_gate/modbus"
 )
 
 type ModbusSender struct {
@@ -19,7 +17,7 @@ func NewModbusSender(addr string) (s *ModbusSender, err error) {
 	return s, err
 }
 
-func (s *ModbusSender) Send(pdu *modbus.ProtocolDataUnit) (*modbus.ProtocolDataUnit, error) {
+func (s *ModbusSender) Send(pdu *ProtocolDataUnit) (*ProtocolDataUnit, error) {
 	data := pdu.MakeTCP(s.trId)
 	s.trId++
 
@@ -34,7 +32,7 @@ func (s *ModbusSender) Send(pdu *modbus.ProtocolDataUnit) (*modbus.ProtocolDataU
 		return nil, err
 	}
 
-	_, ans, _ := modbus.FromTCP(res[:n])
+	_, ans, _ := FromTCP(res[:n])
 	return ans, nil
 }
 
