@@ -81,6 +81,7 @@ func (app *App) StartWorker() {
 					app.Logger.Debugf("answer %v", job.Answer, zap.Uint16("tr_id", job.TransactionId))
 				}
 				job.Ch <- true
+				close(job.Ch)
 			case <-app.Done:
 				return
 			}
@@ -118,7 +119,6 @@ func (app *App) processPdu(transactionId uint16, pdu *modbus.ProtocolDataUnit) (
 	}
 
 	job := &Job{Ch: make(chan bool), TransactionId: transactionId, Pdu: pdu}
-	defer close(job.Ch)
 
 	select {
 	case app.Jobs <- job:
