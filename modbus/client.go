@@ -44,5 +44,8 @@ func (s *ModbusSender) Send(pdu *ProtocolDataUnit) (*ProtocolDataUnit, error) {
 }
 
 func (s *ModbusSender) Close() error {
-	return s.conn.Close()
+	if s.conn != nil {
+		return s.conn.Close()
+	}
+	return nil
 }
