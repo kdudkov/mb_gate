@@ -111,7 +111,7 @@ func (t *FakeTranslator) Translate(pdu *modbus.ProtocolDataUnit) bool {
 	case modbus.FuncCodeWriteSingleCoil:
 		addr := binary.BigEndian.Uint16(pdu.Data)
 		val := binary.BigEndian.Uint16(pdu.Data[2:])
-		if val == 0xff {
+		if val == 0xff00 {
 			t.coils[addr] = true
 		} else {
 			t.coils[addr] = false
