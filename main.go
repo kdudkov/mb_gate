@@ -12,16 +12,16 @@ import (
 
 	"go.uber.org/zap"
 
-	"mb_gate/modbus"
+	"github.com/kdudkov/mb_gate/modbus"
 )
 
 const (
-	readTimeout = time.Second * 5
+	readTimeout = time.Second * 15
 )
 
 var (
-	gitRevision string = "unknown"
-	gitBranch   string = "unknown"
+	gitRevision = "unknown"
+	gitBranch   = "unknown"
 )
 
 type Job struct {

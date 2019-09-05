@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/binary"
 
-	"mb_gate/modbus"
+	"github.com/kdudkov/mb_gate/modbus"
 )
 
 type Translator interface {

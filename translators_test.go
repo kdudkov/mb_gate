@@ -3,8 +3,9 @@ package main
 import (
 	"encoding/binary"
 	"fmt"
-	"mb_gate/modbus"
 	"testing"
+
+	"github.com/kdudkov/mb_gate/modbus"
 )
 
 func TestSimpleOn(t *testing.T) {

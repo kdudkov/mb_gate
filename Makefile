@@ -1,5 +1,6 @@
 default: all
 
+.PHONY: all
 all: test build
 
 GIT_REVISION=$(shell git rev-parse --short HEAD)
@@ -26,4 +27,9 @@ run:
 .PHONY: build
 build: prepare
 	go build $(LDFLAGS) -o bin/mb_gate
-	go build $(LDFLAGS) -o bin/client test_client/client.go
+	go build $(LDFLAGS) -o bin/client ./cmd/client/
+	go build $(LDFLAGS) -o bin/wiren ./cmd/wiren/
+
+.PHONY: gox
+gox: prepare
+	GOARM=5 gox --osarch="linux/amd64 linux/arm" -output "bin/{{.Dir}}_{{.OS}}_{{.Arch}}" $(LDFLAGS)

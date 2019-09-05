@@ -59,14 +59,18 @@ type ProtocolDataUnit struct {
 }
 
 func (pdu *ProtocolDataUnit) String() string {
-	s := ""
-	for _, d := range pdu.Data {
-		if s != "" {
-			s = s + " "
+	if pdu.FunctionCode&0x80 == 0 {
+		s := ""
+		for _, d := range pdu.Data {
+			if s != "" {
+				s = s + " "
+			}
+			s = s + fmt.Sprintf("%#.2x", d)
 		}
-		s = s + fmt.Sprintf("%#.2x", d)
+		return fmt.Sprintf("slaveId: %d, fn: %#.2x, data: %s", pdu.SlaveId, pdu.FunctionCode, s)
+	} else {
+		return fmt.Sprintf("error: slave_id: %d, fn: %#.2x, code: %#.2x", pdu.SlaveId, pdu.FunctionCode&0x7f, pdu.Data[0])
 	}
-	return fmt.Sprintf("slaveId: %d, fn: %#.2x, data: %s", pdu.SlaveId, pdu.FunctionCode, s)
 }
 
 func (pdu *ProtocolDataUnit) ReqString() string {
@@ -130,7 +134,7 @@ func ReadInputRegisters(slaveId byte, addr uint16, count uint16) (pdu *ProtocolD
 func WriteSingleCoil(slaveId byte, addr uint16, val bool) (pdu *ProtocolDataUnit) {
 	var v uint16 = 0
 	if val {
-		v = 0xff
+		v = 0xff00
 	}
 	return WriteSingleCoilRaw(slaveId, addr, v)
 }
@@ -260,4 +264,36 @@ func FromTCP(adu []byte) (transactionId uint16, pdu *ProtocolDataUnit, err error
 	pdu.FunctionCode = adu[TcpHeaderSize]
 	pdu.Data = adu[TcpHeaderSize+1:]
 	return
+}
+
+func DecodeCoils(pdu *ProtocolDataUnit) []bool {
+	var i byte
+
+	if pdu.FunctionCode != FuncCodeReadCoils && pdu.FunctionCode != FuncCodeReadDiscreteInputs {
+		return nil
+	}
+
+	res := make([]bool, pdu.Data[0]*8)
+
+	for i = 0; i < pdu.Data[0]*8; i++ {
+		res[i] = pdu.Data[1+i>>3]&(1<<(i&7)) > 0
+	}
+
+	return res
+}
+
+func DecodeValuse(pdu *ProtocolDataUnit) []uint16 {
+	var i byte
+
+	if pdu.FunctionCode != FuncCodeReadInputRegisters && pdu.FunctionCode != FuncCodeReadHoldingRegisters {
+		return nil
+	}
+
+	res := make([]uint16, pdu.Data[0])
+
+	for i = 0; i < pdu.Data[0]; i++ {
+		res[i] = binary.BigEndian.Uint16(pdu.Data[1+i*2:])
+	}
+
+	return res
 }

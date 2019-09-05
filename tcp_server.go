@@ -5,7 +5,7 @@ import (
 	"net"
 	"time"
 
-	"mb_gate/modbus"
+	"github.com/kdudkov/mb_gate/modbus"
 )
 
 const (

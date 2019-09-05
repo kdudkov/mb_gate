@@ -1,6 +1,5 @@
 .idea
 bin
-pkg
 vendor
 *.swp
 *.tmp

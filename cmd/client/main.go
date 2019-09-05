@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
-	"mb_gate/modbus"
+	"github.com/kdudkov/mb_gate/modbus"
 	"net"
 	"os"
 )
