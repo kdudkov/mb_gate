@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io"
 	"net"
 	"time"
 
@@ -45,9 +44,6 @@ func (h *TcpHandler) handle() {
 		packet := make([]byte, 255)
 		bytesRead, err := h.conn.Read(packet)
 		if err != nil {
-			if err != io.EOF {
-				h.app.Logger.Errorf("read error %v", err)
-			}
 			if h.closeTimer != nil {
 				h.closeTimer.Stop()
 			}
