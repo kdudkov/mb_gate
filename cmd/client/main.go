@@ -56,7 +56,7 @@ func main() {
 		}
 
 		fmt.Printf("responce: %v\n", resp)
-		res := modbus.DecodeValuse(pdu)
+		res := modbus.DecodeValues(pdu)
 
 		for i := 0; i < *num; i++ {
 			fmt.Printf("  %d: %#x\n", *addr+i, res[i])

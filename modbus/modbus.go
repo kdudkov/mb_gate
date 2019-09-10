@@ -273,25 +273,27 @@ func DecodeCoils(pdu *ProtocolDataUnit) []bool {
 		return nil
 	}
 
-	res := make([]bool, pdu.Data[0]*8)
+	size := pdu.Data[0] * 8
+	res := make([]bool, size)
 
-	for i = 0; i < pdu.Data[0]*8; i++ {
+	for i = 0; i < size; i++ {
 		res[i] = pdu.Data[1+i>>3]&(1<<(i&7)) > 0
 	}
 
 	return res
 }
 
-func DecodeValuse(pdu *ProtocolDataUnit) []uint16 {
+func DecodeValues(pdu *ProtocolDataUnit) []uint16 {
 	var i byte
 
 	if pdu.FunctionCode != FuncCodeReadInputRegisters && pdu.FunctionCode != FuncCodeReadHoldingRegisters {
 		return nil
 	}
 
-	res := make([]uint16, pdu.Data[0])
+	size := pdu.Data[0] / 2
+	res := make([]uint16, size)
 
-	for i = 0; i < pdu.Data[0]; i++ {
+	for i = 0; i < size; i++ {
 		res[i] = binary.BigEndian.Uint16(pdu.Data[1+i*2:])
 	}
 
