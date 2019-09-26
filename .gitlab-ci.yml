@@ -1,5 +1,9 @@
 image: golang:1.12
 
+artifacts:
+  paths:
+    - bin/
+
 stages:
   - test
   - build
