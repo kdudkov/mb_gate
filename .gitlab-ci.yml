@@ -5,9 +5,6 @@ stages:
   - test
   - build
 
-before_script:
-  - make dep
-
 unit_tests:
   stage: test
   script:
