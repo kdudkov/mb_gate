@@ -16,4 +16,4 @@ build:
     - make build
   artifacts:
     paths:
-      - bin/
+      - bin/mb_gate
