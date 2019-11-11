@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/binary"
+	"sync"
 
 	"github.com/kdudkov/mb_gate/modbus"
 )
@@ -12,13 +13,16 @@ type Translator interface {
 
 type SimpleChineese struct {
 	registers map[uint16]uint16
+	mutex     sync.Mutex
 }
 
 func NewSimpleChinese() *SimpleChineese {
-	return &SimpleChineese{registers: map[uint16]uint16{}}
+	return &SimpleChineese{registers: map[uint16]uint16{}, mutex: sync.Mutex{}}
 }
 
 func (s *SimpleChineese) Translate(pdu *modbus.ProtocolDataUnit) (dontSend bool) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
 	switch pdu.FunctionCode {
 	case modbus.FuncCodeWriteSingleRegister:
@@ -67,17 +71,20 @@ func (s *SimpleChineese) Translate(pdu *modbus.ProtocolDataUnit) (dontSend bool)
 type FakeTranslator struct {
 	registers []uint16
 	coils     []bool
+	mutex     sync.Mutex
 }
 
 func NewFakeTranslator() *FakeTranslator {
 	f := &FakeTranslator{}
 	f.registers = make([]uint16, 65535)
 	f.coils = make([]bool, 65535)
-
+	f.mutex = sync.Mutex{}
 	return f
 }
 
 func (t *FakeTranslator) Translate(pdu *modbus.ProtocolDataUnit) bool {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
 
 	switch pdu.FunctionCode {
 	case modbus.FuncCodeWriteSingleRegister:
