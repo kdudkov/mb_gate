@@ -26,8 +26,10 @@ test:
 
 .PHONY: build
 build: clean dep
+	[ -d bin ] || mkdir bin
 	go build $(LDFLAGS) -o bin/ ./cmd/...
 
 .PHONY: gox
 gox: clean dep
+	[ -d bin ] || mkdir bin
 	GOARM=5 gox --osarch="linux/amd64 linux/arm" -output "bin/{{.Dir}}_{{.OS}}_{{.Arch}}" $(LDFLAGS) ./cmd/mb_gate/.
