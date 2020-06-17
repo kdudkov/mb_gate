@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"runtime"
+	"sync"
 	"syscall"
 	"time"
 
@@ -62,41 +62,36 @@ func NewApp(port string, portSpeed int, httpPort string, tcpPort string, logger 
 	return
 }
 
-func (app *App) StartWorker() {
-	go func() {
-		for {
-			select {
-			case job := <-app.Jobs:
-				if job.Pdu == nil {
-					app.Logger.Error("nil job pdu")
-					continue
-				}
-				d, _ := job.Pdu.MakeRtu()
-				ans, err := app.SerialPort.Send(d)
-				if err != nil {
-					app.Logger.Errorf("error %v", err, zap.Uint16("tr_id", job.TransactionId))
-					job.Answer = modbus.NewModbusError(job.Pdu, modbus.ExceptionCodeServerDeviceFailure)
-				} else {
-					job.Answer, _ = modbus.FromRtu(ans)
-					app.Logger.Debugf("answer %v", job.Answer, zap.Uint16("tr_id", job.TransactionId))
-				}
-				job.Ch <- true
-				close(job.Ch)
-			case <-app.Done:
-				return
+func (app *App) WorkerLoop(wg *sync.WaitGroup) {
+	wg.Add(1)
+	defer wg.Done()
+
+	for {
+		select {
+		case job := <-app.Jobs:
+			if job.Pdu == nil {
+				app.Logger.Error("nil job pdu")
+				continue
 			}
-
-			runtime.Gosched()
+			d, _ := job.Pdu.MakeRtu()
+			ans, err := app.SerialPort.Send(d)
+			if err != nil {
+				app.Logger.Errorf("error %v", err, zap.Uint16("tr_id", job.TransactionId))
+				job.Answer = modbus.NewModbusError(job.Pdu, modbus.ExceptionCodeServerDeviceFailure)
+			} else {
+				job.Answer, _ = modbus.FromRtu(ans)
+				app.Logger.Debugf("answer %v", job.Answer, zap.Uint16("tr_id", job.TransactionId))
+			}
+			job.Ch <- true
+			close(job.Ch)
+		case <-app.Done:
+			return
 		}
-	}()
-
+	}
 }
 
 func (app *App) Run() {
-	app.StartWorker()
-
 	app.Logger.Infof("start http server on %s", app.httpPort)
-
 	go func() {
 		if err := http.ListenAndServe(app.httpPort, nil); err != nil {
 			app.Logger.Panic("can't start tcp listener", err)
@@ -104,9 +99,22 @@ func (app *App) Run() {
 	}()
 
 	app.Logger.Infof("start tcp server on %s", app.tcpPort)
-	if err := app.ListenTCP(app.tcpPort); err != nil {
-		app.Logger.Panic("can't start tcp listener", err)
-	}
+	go func() {
+		if err := app.ListenTCP(app.tcpPort); err != nil {
+			app.Logger.Panic("can't start tcp listener", err)
+		}
+	}()
+
+	wg := new(sync.WaitGroup)
+	go app.WorkerLoop(wg)
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
+	<-c
+
+	app.Logger.Info("exiting...")
+	app.Done <- true
+	wg.Wait()
 }
 
 func (app *App) processPdu(transactionId uint16, pdu *modbus.ProtocolDataUnit) (*modbus.ProtocolDataUnit, error) {
@@ -147,17 +155,8 @@ func main() {
 
 	cfg := zap.NewProductionConfig()
 	logger, _ := cfg.Build()
+	defer logger.Sync()
+
 	app := NewApp(*port, *portSpeed, *httpPort, *tcpPort, logger.Sugar())
-
-	c := make(chan os.Signal)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-
-	go func() {
-		<-c
-		app.Logger.Info("exiting...")
-		app.Done <- true
-		os.Exit(1)
-	}()
-
 	app.Run()
 }
