@@ -1,4 +1,4 @@
-# Modbus gate
+# Modbus gate ![Travis CI](https://travis-ci.com/kdudkov/mb_gate.svg?branch=master)
 
 ## 4-relay plate
 
