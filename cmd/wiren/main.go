@@ -75,7 +75,7 @@ func GetString(pdu *modbus.ProtocolDataUnit) string {
 		if val == 0 {
 			return s
 		}
-		s += string(val)
+		s += fmt.Sprint(val)
 	}
 	return s
 }
