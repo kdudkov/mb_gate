@@ -32,4 +32,4 @@ build: clean dep
 .PHONY: gox
 gox: clean dep
 	[ -d bin ] || mkdir bin
-	GOARM=5 gox --osarch="linux/amd64 linux/arm" -output "bin/{{.Dir}}_{{.OS}}_{{.Arch}}" $(LDFLAGS) ./cmd/mb_gate/.
+	GOARM=5 gox --osarch="linux/amd64 linux/arm" -output "bin/{{.Dir}}_{{.OS}}_{{.Arch}}" $(LDFLAGS) ./cmd/...
