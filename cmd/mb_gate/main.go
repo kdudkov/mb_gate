@@ -35,13 +35,13 @@ type App struct {
 	Done        chan bool
 	Jobs        chan *Job
 	SerialPort  *modbus.SerialPort
-	httpPort    string
-	tcpPort     string
+	httpPort    int
+	tcpPort     int
 	translators map[byte]Translator
 	Logger      *zap.SugaredLogger
 }
 
-func NewApp(port string, portSpeed int, httpPort string, tcpPort string, logger *zap.SugaredLogger) (app *App) {
+func NewApp(port string, portSpeed int, httpPort int, tcpPort int, logger *zap.SugaredLogger) (app *App) {
 	app = &App{
 		Done:        make(chan bool),
 		Jobs:        make(chan *Job, 10),
@@ -91,16 +91,16 @@ func (app *App) WorkerLoop(wg *sync.WaitGroup) {
 }
 
 func (app *App) Run() {
-	app.Logger.Infof("start http server on %s", app.httpPort)
+	app.Logger.Infof("start http server on port %d", app.httpPort)
 	go func() {
-		if err := http.ListenAndServe(app.httpPort, nil); err != nil {
+		if err := http.ListenAndServe(fmt.Sprintf(":%d", app.httpPort), nil); err != nil {
 			app.Logger.Panic("can't start tcp listener", err)
 		}
 	}()
 
-	app.Logger.Infof("start tcp server on %s", app.tcpPort)
+	app.Logger.Infof("start tcp server on port %d", app.tcpPort)
 	go func() {
-		if err := app.ListenTCP(app.tcpPort); err != nil {
+		if err := app.ListenTCP(fmt.Sprintf(":%d", app.tcpPort)); err != nil {
 			app.Logger.Panic("can't start tcp listener", err)
 		}
 	}()
@@ -146,8 +146,8 @@ func (app *App) processPdu(transactionId uint16, pdu *modbus.ProtocolDataUnit) (
 func main() {
 	fmt.Printf("version %s:%s\n", gitBranch, gitRevision)
 
-	var httpPort = flag.String("http", ":8080", "hpst:port for http")
-	var tcpPort = flag.String("tcp", ":1502", "hpst:port for modbus tcp")
+	var httpPort = flag.Int("http_port", 8080, "host:port for http")
+	var tcpPort = flag.Int("tcp_port", 1502, "host:port for modbus tcp")
 	var port = flag.String("port", "/dev/ttyS0", "serial port")
 	var portSpeed = flag.Int("speed", 19200, "serial port speed")
 
