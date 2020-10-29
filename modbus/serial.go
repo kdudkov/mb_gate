@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	serialTimeout     = 5 * time.Second
+	serialTimeout     = 500 * time.Millisecond
 	serialIdleTimeout = 60 * time.Second
 )
 

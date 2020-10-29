@@ -1,6 +1,7 @@
 package main
 
 import (
+	"go.uber.org/zap"
 	"net"
 	"time"
 
@@ -15,7 +16,7 @@ type TcpHandler struct {
 	conn         net.Conn
 	closeTimer   *time.Timer
 	lastActivity time.Time
-	app          *App
+	logger       *zap.SugaredLogger
 }
 
 func (app *App) ListenTCP(addressPort string) (err error) {
@@ -32,12 +33,12 @@ func (app *App) ListenTCP(addressPort string) (err error) {
 			return err
 		}
 
-		h := TcpHandler{conn: conn, app: app}
-		go h.handle()
+		h := TcpHandler{conn: conn, logger: app.Logger}
+		go h.handle(app.processPdu)
 	}
 }
 
-func (h *TcpHandler) handle() {
+func (h *TcpHandler) handle(processor func(transactionId uint16, pdu *modbus.ProtocolDataUnit) (*modbus.ProtocolDataUnit, error)) {
 	defer h.conn.Close()
 
 	for {
@@ -52,15 +53,15 @@ func (h *TcpHandler) handle() {
 		h.setActivity()
 
 		transactionId, pdu, err := modbus.FromTCP(packet[:bytesRead])
-		l := h.app.Logger.With("tr_id", transactionId)
+		l := h.logger.With("tr_id", transactionId)
 
 		if err != nil {
-			h.app.Logger.Errorf("bad packet error %v", err)
+			h.logger.Errorf("bad packet error %v", err)
 			return
 		}
 		l.Debugf("request: %v", pdu)
 
-		ans, err := h.app.processPdu(transactionId, pdu)
+		ans, err := processor(transactionId, pdu)
 		if err != nil {
 			l.Errorf("error processing pdu: %s", err.Error())
 		}
@@ -92,7 +93,7 @@ func (h *TcpHandler) closeIdle() {
 	idle := time.Now().Sub(h.lastActivity)
 
 	if idle >= IdleTimeout {
-		h.app.Logger.Debugf("modbus: closing tcp connection due to idle timeout: %v", idle)
+		h.logger.Debugf("modbus: closing tcp connection due to idle timeout: %v", idle)
 		h.conn.Close()
 	}
 }

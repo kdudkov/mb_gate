@@ -107,6 +107,39 @@ func (pdu *ProtocolDataUnit) ReqString() string {
 	}
 }
 
+func (pdu *ProtocolDataUnit) ErrString() string {
+	if pdu.FunctionCode&0x80 == 0 {
+		return ""
+	}
+
+	if len(pdu.Data) == 0 {
+		return "?"
+	}
+
+	switch pdu.Data[0] {
+	case ExceptionCodeIllegalFunction:
+		return "Illegal function"
+	case ExceptionCodeIllegalDataAddress:
+		return "Illegal data address"
+	case ExceptionCodeIllegalDataValue:
+		return "Illegal data value"
+	case ExceptionCodeServerDeviceFailure:
+		return "server device failure"
+	case ExceptionCodeAcknowledge:
+		return "Ack"
+	case ExceptionCodeServerDeviceBusy:
+		return "Device busy"
+	case ExceptionCodeMemoryParityError:
+		return "Memory parity error"
+	case ExceptionCodeGatewayPathUnavailable:
+		return "Gateway path unavailable"
+	case ExceptionCodeGatewayTargetDeviceFailedToRespond:
+		return "Gateway target device failed to respond"
+	default:
+		return fmt.Sprintf("Unknown code %x", pdu.Data[0])
+	}
+}
+
 func readManyPDU(slaveId byte, fn byte, addr uint16, count uint16) (pdu *ProtocolDataUnit) {
 	pdu = &ProtocolDataUnit{SlaveId: slaveId, FunctionCode: fn}
 	pdu.Data = make([]byte, 4)
@@ -266,11 +299,11 @@ func FromTCP(adu []byte) (transactionId uint16, pdu *ProtocolDataUnit, err error
 	return
 }
 
-func DecodeCoils(pdu *ProtocolDataUnit) []bool {
+func DecodeCoils(pdu *ProtocolDataUnit) ([]bool, error) {
 	var i byte
 
 	if pdu.FunctionCode != FuncCodeReadCoils && pdu.FunctionCode != FuncCodeReadDiscreteInputs {
-		return nil
+		return nil, fmt.Errorf("wrong function %x in pdu", pdu.FunctionCode)
 	}
 
 	size := pdu.Data[0] * 8
@@ -280,14 +313,14 @@ func DecodeCoils(pdu *ProtocolDataUnit) []bool {
 		res[i] = pdu.Data[1+i>>3]&(1<<(i&7)) > 0
 	}
 
-	return res
+	return res, nil
 }
 
-func DecodeValues(pdu *ProtocolDataUnit) []uint16 {
+func DecodeValues(pdu *ProtocolDataUnit) ([]uint16, error) {
 	var i byte
 
 	if pdu.FunctionCode != FuncCodeReadInputRegisters && pdu.FunctionCode != FuncCodeReadHoldingRegisters {
-		return nil
+		return nil, fmt.Errorf("wrong function %x in pdu", pdu.FunctionCode)
 	}
 
 	size := pdu.Data[0] / 2
@@ -297,5 +330,5 @@ func DecodeValues(pdu *ProtocolDataUnit) []uint16 {
 		res[i] = binary.BigEndian.Uint16(pdu.Data[1+i*2:])
 	}
 
-	return res
+	return res, nil
 }

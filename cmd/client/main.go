@@ -16,7 +16,7 @@ func main() {
 	//var data = flag.String("data", "", "data to send")
 
 	flag.Parse()
-	s := modbus.NewModbusSender(*host)
+	s := modbus.NewClient(*host)
 	err := s.Connect()
 	if err != nil {
 		fmt.Printf("error: %s", err.Error())
@@ -39,7 +39,11 @@ func main() {
 
 		fmt.Printf("responce: %v\n", resp)
 
-		res := modbus.DecodeCoils(resp)
+		if resp.ErrString() != "" {
+			fmt.Printf("error: %s", resp.ErrString())
+		}
+
+		res, _ := modbus.DecodeCoils(resp)
 		for i := 0; i < *num; i++ {
 			fmt.Printf("  %d: %v\n", *addr+i, res[i])
 		}
@@ -56,8 +60,11 @@ func main() {
 		}
 
 		fmt.Printf("responce: %v\n", resp)
-		res := modbus.DecodeValues(pdu)
+		if resp.ErrString() != "" {
+			fmt.Printf("error: %s", resp.ErrString())
+		}
 
+		res, _ := modbus.DecodeValues(pdu)
 		for i := 0; i < *num; i++ {
 			fmt.Printf("  %d: %#x\n", *addr+i, res[i])
 		}
@@ -72,5 +79,4 @@ func main() {
 		fmt.Println("  6 (0x06) — Write Single Register.")
 		os.Exit(1)
 	}
-
 }

@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	readTimeout = time.Second * 15
+	readTimeout = time.Second
 )
 
 var (
