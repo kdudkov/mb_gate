@@ -25,13 +25,13 @@ type SerialPort struct {
 	Logger       *zap.SugaredLogger
 }
 
-func NewSerial(device string, baudrate int) (s *SerialPort) {
+func NewSerial(device string, baudrate int, data int, parity string, stop int) (s *SerialPort) {
 	s = &SerialPort{}
 	s.Address = device
 	s.BaudRate = baudrate
-	s.DataBits = 8
-	s.Parity = "N"
-	s.StopBits = 1
+	s.DataBits = data
+	s.Parity = parity
+	s.StopBits = stop
 	s.Timeout = serialTimeout
 	s.IdleTimeout = serialIdleTimeout
 	return

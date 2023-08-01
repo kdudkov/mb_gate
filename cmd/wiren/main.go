@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	var host = flag.String("host", "192.168.0.1:1502", "host:port")
+	var host = flag.String("host", "192.168.1.2:1502", "host:port")
 
 	flag.Parse()
 	s := modbus.NewClient(*host)
@@ -43,8 +43,21 @@ func SearchDevices(s *modbus.MbClient) {
 		if v, err := GetWirenVersion(s, uint16(addr)); err == nil {
 			fmt.Printf("%d: Wiren board %s\n", addr, v)
 		} else {
-			fmt.Printf("%d: not wiren device\n", addr)
+			fmt.Printf("%d: not wiren device: %s\n", addr, err.Error())
 		}
+	}
+}
+
+func CheckDevice(s *modbus.MbClient, addr int) {
+	s.WriteCoil(byte(addr), 1, false)
+	dat, err := s.ReadCoils(byte(addr), 1, 6)
+
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	for _, i := range dat {
+		fmt.Println(i)
 	}
 }
 

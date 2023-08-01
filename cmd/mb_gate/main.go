@@ -45,7 +45,7 @@ func NewApp(port string, portSpeed int, httpPort int, tcpPort int, logger *zap.S
 	app = &App{
 		Done:        make(chan bool),
 		Jobs:        make(chan *Job, 10),
-		SerialPort:  modbus.NewSerial(port, portSpeed),
+		SerialPort:  modbus.NewSerial(port, portSpeed, 8, "N", 1),
 		httpPort:    httpPort,
 		tcpPort:     tcpPort,
 		translators: make(map[byte]Translator),
@@ -76,11 +76,11 @@ func (app *App) WorkerLoop(wg *sync.WaitGroup) {
 			d, _ := job.Pdu.MakeRtu()
 			ans, err := app.SerialPort.Send(d)
 			if err != nil {
-				app.Logger.Errorf("error %v", err, zap.Uint16("tr_id", job.TransactionId))
+				app.Logger.With(zap.Uint16("tr_id", job.TransactionId)).Errorf("error %v", err)
 				job.Answer = modbus.NewModbusError(job.Pdu, modbus.ExceptionCodeServerDeviceFailure)
 			} else {
 				job.Answer, _ = modbus.FromRtu(ans)
-				app.Logger.Debugf("answer %v", job.Answer, zap.Uint16("tr_id", job.TransactionId))
+				app.Logger.With(zap.Uint16("tr_id", job.TransactionId)).Debugf("answer %v", job.Answer)
 			}
 			job.Ch <- true
 			close(job.Ch)
@@ -150,11 +150,16 @@ func main() {
 	var tcpPort = flag.Int("tcp_port", 1502, "host:port for modbus tcp")
 	var port = flag.String("port", "/dev/ttyS0", "serial port")
 	var portSpeed = flag.Int("speed", 19200, "serial port speed")
+	var dev = flag.Bool("devel", false, "development")
 
 	flag.Parse()
 
-	cfg := zap.NewProductionConfig()
-	logger, _ := cfg.Build()
+	var logger *zap.Logger
+	if *dev {
+		logger, _ = zap.NewDevelopment()
+	} else {
+		logger, _ = zap.NewProduction()
+	}
 	defer logger.Sync()
 
 	app := NewApp(*port, *portSpeed, *httpPort, *tcpPort, logger.Sugar())
